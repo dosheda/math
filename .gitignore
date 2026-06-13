@@ -1,0 +1,39 @@
+# Secrets and local configuration
+.env
+.env.*
+*.env
+api_key*
+api_keys*
+secrets*
+local_settings.py
+
+# Runtime databases and vector stores
+*.db
+*.sqlite
+*.sqlite3
+mistakes.db
+mistake_chroma_db/
+chroma_db/
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Logs and temporary files
+*.log
+*.tmp
+tmp/
+temp/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
