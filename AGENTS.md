@@ -8,23 +8,24 @@
 ## 项目概述
 - 这个项目是一个独立的 K12 数学错题讲解助手，和之前的古诗词项目分开。
 - 目标：围绕“录入错题 -> 自动归类 -> 对症讲解 -> 错题本复习 -> 学情分析 -> 相似题推荐”形成一个本地可运行的学习闭环。
-- 当前形态：Python 后端模块 + SQLite 本地数据库 + DeepSeek API + Chroma 本地向量库 + 命令行测试脚本；暂时没有 Web UI。
+- 当前形态：Streamlit 网页界面 + Python 后端模块 + SQLite 本地数据库 + DeepSeek API + Chroma 本地向量库 + 命令行测试脚本。
 
 ## 当前核心模块
 - `mistake_db.py`：SQLite 数据库模块，负责建表、预置初中数学知识点、录入错题、查询错题、更新掌握状态、统计学情。
 - `mistake_ai.py`：DeepSeek AI 模块，负责自动归类、生成对症讲解、生成学情报告。
 - `mistake_recommender.py`：相似题推荐模块，负责把错题同步到 Chroma，并生成“同知识点 + 思路相近”两层推荐。
 - `seed_similar_mistake_samples.py`：批量准备约 48 道测试错题，录入时走现有 DeepSeek 自动归类流程。
+- `app.py`：Streamlit 网页入口，串联录入错题、讲解、错题本、学情分析和相似题推荐。
 - `test_*.py`：脚本式测试，覆盖数据库、自动归类、AI 讲解、错题本/学情分析、相似题推荐。
 
 ## 技术栈
-- 语言：Python。
+- 语言/界面：Python + Streamlit。
 - 数据库：SQLite，本地文件默认是 `mistakes.db`。
 - AI：DeepSeek API，通过 OpenAI SDK 兼容接口调用，模型当前为 `deepseek-v4-pro`。
 - API key：只允许从系统环境变量 `DEEPSEEK_API_KEY` 读取。
 - 向量库：ChromaDB 本地 `PersistentClient`，默认路径 `mistake_chroma_db/`。
 - Embedding：`BAAI/bge-small-zh-v1.5`，通过 Chroma 内置 `SentenceTransformerEmbeddingFunction` 加载。
-- 依赖版本：`openai==2.41.0`、`chromadb==1.5.9`、`sentence-transformers==2.7.0`。
+- 依赖版本：`openai==2.41.0`、`chromadb==1.5.9`、`sentence-transformers==2.7.0`、`streamlit==1.58.0`。
 
 ## 重要约定
 - 不要把这个项目和古诗词 RAG 项目混在一起；当前项目目录是 `D:\k12_math_mistake_helper`。
@@ -54,6 +55,7 @@
   - `python test_generate_explanation.py`（需要 `DEEPSEEK_API_KEY`）
   - `python test_mistake_book_analysis.py`（需要 `DEEPSEEK_API_KEY` 才生成 AI 报告）
   - `python test_similar_recommendations.py`（需要已安装 Chroma/embedding 依赖；有 key 时会走样例录入检查）
+  - `python -m streamlit run app.py`（启动网页界面）
 - Chroma 首次加载 embedding 模型可能较慢，这是正常现象。
 
 ## 文档维护

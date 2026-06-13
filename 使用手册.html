@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>K12 数学错题讲解助手 - 网页端使用手册</title>
+  <style>
+    :root {
+      --ink: #16202a;
+      --muted: #667085;
+      --paper: #ffffff;
+      --line: #d8dee8;
+      --bg: #f3f7f8;
+      --soft: #eef7f5;
+      --teal: #0f766e;
+      --teal-dark: #115e59;
+      --coral: #d65f4a;
+      --gold: #b7791f;
+      --blue: #2563eb;
+      --danger: #be3a2f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #f7faf9 0%, #edf3f4 46%, #f8fafc 100%);
+      color: var(--ink);
+      line-height: 1.75;
+      letter-spacing: 0;
+    }
+
+    a {
+      color: var(--teal-dark);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      margin: 24px auto 20px;
+      border: 1px solid rgba(23, 32, 42, 0.10);
+      border-radius: 8px;
+      padding: 30px;
+      background:
+        linear-gradient(135deg, rgba(15,118,110,0.98), rgba(23,32,42,0.96) 54%, rgba(183,121,31,0.90));
+      color: #fff;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, 0.13);
+    }
+
+    .hero h1 {
+      margin: 8px 0 10px;
+      font-size: clamp(28px, 5vw, 46px);
+      line-height: 1.16;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 820px;
+      margin: 0;
+      color: rgba(255,255,255,0.84);
+      font-size: 16px;
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.26);
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: #fff;
+      background: rgba(255,255,255,0.12);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+      padding-bottom: 44px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 16px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.055);
+    }
+
+    .toc h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+    }
+
+    .toc a {
+      display: block;
+      padding: 7px 8px;
+      border-radius: 6px;
+      color: #344054;
+      font-size: 14px;
+    }
+
+    .toc a:hover {
+      background: var(--soft);
+      text-decoration: none;
+      color: var(--teal-dark);
+    }
+
+    main {
+      display: grid;
+      gap: 16px;
+    }
+
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 20px 0 8px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 8px 0;
+    }
+
+    ul, ol {
+      padding-left: 1.35em;
+      margin: 8px 0;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    code {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      background: #eef2f7;
+      border: 1px solid #dde5ee;
+      border-radius: 5px;
+      padding: 1px 5px;
+      color: #1f2937;
+      font-size: 0.94em;
+    }
+
+    pre {
+      overflow-x: auto;
+      padding: 14px 16px;
+      background: #101828;
+      color: #e6edf3;
+      border-radius: 8px;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    pre code {
+      background: transparent;
+      border: 0;
+      color: inherit;
+      padding: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #f3f7f8;
+      font-weight: 800;
+    }
+
+    .callout {
+      border-radius: 8px;
+      border: 1px solid #cfe6e2;
+      background: #eef7f5;
+      padding: 14px 16px;
+      margin: 12px 0;
+    }
+
+    .callout.warn {
+      border-color: #fed7aa;
+      background: #fff7ed;
+    }
+
+    .callout.danger {
+      border-color: #fecaca;
+      background: #fff1f0;
+    }
+
+    .callout strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fbfcfd;
+    }
+
+    .card b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--ink);
+    }
+
+    .card span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .steps {
+      counter-reset: step;
+      display: grid;
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .step {
+      position: relative;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--teal);
+      border-radius: 8px;
+      padding: 12px 14px 12px 48px;
+      background: #fbfcfd;
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 14px;
+      top: 13px;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--teal);
+      color: white;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 9px;
+      margin: 2px 4px 2px 0;
+      font-size: 12px;
+      font-weight: 750;
+      border: 1px solid #cfe6e2;
+      color: var(--teal-dark);
+      background: var(--soft);
+      white-space: nowrap;
+    }
+
+    .tag.warn {
+      border-color: #fed7aa;
+      color: #9a580b;
+      background: #fff7ed;
+    }
+
+    .tag.blue {
+      border-color: #bfdbfe;
+      color: #1d4ed8;
+      background: #eff6ff;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .flow div {
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      background: #f8fafb;
+      border: 1px solid var(--line);
+      font-weight: 800;
+      min-height: 72px;
+      display: grid;
+      place-items: center;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .kbd {
+      display: inline-block;
+      border: 1px solid #cfd6df;
+      background: #f8fafc;
+      border-radius: 5px;
+      padding: 0 6px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+    }
+
+    .footer {
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      padding: 0 0 28px;
+    }
+
+    @media (max-width: 920px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+      }
+
+      .cards, .flow, .two {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero shell">
+    <div class="pills">
+      <span class="pill">网页端手册</span>
+      <span class="pill">适合家长 / 老师 / 自己测试</span>
+      <span class="pill">本地运行</span>
+    </div>
+    <h1>K12 数学错题讲解助手使用手册</h1>
+    <p>这份手册专门解释 Streamlit 网页端怎么用：从录入一道真实错题开始，到生成讲解、整理错题本、查看学情报告、推荐相似题。</p>
+  </header>
+
+  <div class="shell layout">
+    <nav class="toc">
+      <h2>目录</h2>
+      <a href="#what">这个工具是干嘛的</a>
+      <a href="#start">如何启动网页</a>
+      <a href="#first-test">第一次怎么测</a>
+      <a href="#sidebar">左侧工作台</a>
+      <a href="#entry">录入错题</a>
+      <a href="#explain">错题讲解</a>
+      <a href="#book">错题本</a>
+      <a href="#analysis">学情分析</a>
+      <a href="#recommend">相似题推荐</a>
+      <a href="#real-data">真实错题怎么准备</a>
+      <a href="#faq">常见问题</a>
+    </nav>
+
+    <main>
+      <section id="what">
+        <h2>1. 这个工具是干嘛的</h2>
+        <p>它不是普通题库，也不是单纯的聊天机器人。它更像一个“错题学习工作台”：你把学生真实做错的题录进去，它帮你判断知识点、生成讲解、整理错题本、看薄弱点，并推荐下一步适合练的相似题。</p>
+
+        <div class="flow">
+          <div>录入真实错题</div>
+          <div>自动判断知识点</div>
+          <div>生成对症讲解</div>
+          <div>沉淀错题本</div>
+          <div>推荐相似题</div>
+        </div>
+
+        <div class="callout">
+          <strong>最重要的一句话</strong>
+          想测它有没有学习价值，要用真实错题测。模拟错题只能证明功能跑通，真实错题才能看出讲解和推荐是否真的帮到孩子。
+        </div>
+      </section>
+
+      <section id="start">
+        <h2>2. 如何启动网页</h2>
+        <p>打开 PowerShell，运行下面命令：</p>
+        <pre><code>cd D:\k12_math_mistake_helper
+python -m streamlit run app.py</code></pre>
+        <p>然后在浏览器打开：</p>
+        <pre><code>http://localhost:8501</code></pre>
+
+        <div class="callout warn">
+          <strong>DeepSeek API key</strong>
+          如果要用“自动归类、生成讲解、AI 学情报告”，必须先在系统环境变量里配置 <code>DEEPSEEK_API_KEY</code>。如果没有配置，网页仍能看错题本，但 AI 按钮会不可用或生成失败。
+        </div>
+      </section>
+
+      <section id="first-test">
+        <h2>3. 第一次应该怎么测</h2>
+        <p>建议不要一上来乱点。按这个顺序测，最容易理解它的价值。</p>
+        <div class="steps">
+          <div class="step"><b>先录入一道真实错题。</b><br />从孩子最近做错的题里挑一道，最好是能写清楚错因的。</div>
+          <div class="step"><b>让系统自动归类。</b><br />保存后看它把题归到哪个知识点，比如“一元二次方程的解法”。</div>
+          <div class="step"><b>去“错题讲解”生成讲解。</b><br />重点看它有没有说清楚“学生到底错在哪一步”。</div>
+          <div class="step"><b>去“相似题推荐”看下一题。</b><br />看同知识点和思路相近的题是否合理。</div>
+          <div class="step"><b>录入 3-5 道后看“学情分析”。</b><br />错题太少时，学情报告参考意义不大。</div>
+        </div>
+      </section>
+
+      <section id="sidebar">
+        <h2>4. 左侧工作台怎么看</h2>
+        <p>网页左侧是状态区，不是主要操作区，但它能帮你判断环境和数据是否正常。</p>
+
+        <table>
+          <thead>
+            <tr><th>区域</th><th>是什么意思</th><th>怎么看</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>环境</td><td>显示 DeepSeek、SQLite、Chroma 是否在用</td><td>DeepSeek 显示“已配置”才可以用 AI 功能</td></tr>
+            <tr><td>数据</td><td>显示原始记录、有效错题、待复习数量</td><td>有效错题是去重后的统计口径</td></tr>
+            <tr><td>同步错题向量</td><td>把 SQLite 错题同步到 Chroma</td><td>做相似题推荐前可以点一下</td></tr>
+            <tr><td>演示数据</td><td>检查 48 道模拟错题是否已录入</td><td>真实使用时不一定要点</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <strong>“原始记录”和“有效错题”为什么不一样</strong>
+          因为测试时可能重复录入同一道题。统计会把“同题、同错答、同知识点”的重复记录合并，只保留最新一条，所以有效错题可能少一些。
+        </div>
+      </section>
+
+      <section id="entry">
+        <h2>5. “录入错题”怎么用</h2>
+        <p>这是最重要的入口。真实使用时，每一道错题都从这里开始。</p>
+
+        <h3>需要填写什么</h3>
+        <table>
+          <thead>
+            <tr><th>字段</th><th>怎么填</th><th>例子</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>题目内容</td><td>把题目完整写进去</td><td>解方程：x^2 - 7x + 12 = 0。</td></tr>
+            <tr><td>学生错误答案</td><td>学生当时写错的答案</td><td>x = 3</td></tr>
+            <tr><td>学生错误原因</td><td>能写就写，越具体越好</td><td>因式分解后只写了一个根，漏掉另一个解</td></tr>
+            <tr><td>正确答案</td><td>标准答案</td><td>x = 3 或 x = 4</td></tr>
+            <tr><td>详细解析</td><td>老师解析或参考答案过程</td><td>(x - 3)(x - 4) = 0，所以 x = 3 或 x = 4</td></tr>
+            <tr><td>年级 / 题型 / 难度</td><td>按实际情况选择</td><td>初三 / 解答 / 基础</td></tr>
+          </tbody>
+        </table>
+
+        <h3>自动归类 vs 手动选择知识点</h3>
+        <div class="two">
+          <div class="card">
+            <b>DeepSeek 自动归类</b>
+            <span>适合真实使用。系统会判断题目属于哪个初中数学知识点。如果题目是小学、高中或非数学题，会提示超范围。</span>
+          </div>
+          <div class="card">
+            <b>手动选择知识点</b>
+            <span>适合你已经知道知识点，或者没有配置 DeepSeek API key 时使用。它不会调用 AI 自动判断。</span>
+          </div>
+        </div>
+
+        <h3>保存后生成讲解</h3>
+        <p>勾选后，保存错题之后会立刻调用 DeepSeek 生成讲解。建议第一次测试可以先不勾选，保存成功后再去“错题讲解”页面单独生成，这样更清楚每一步发生了什么。</p>
+
+        <div class="callout danger">
+          <strong>不要只填题目</strong>
+          这个工具的价值来自“题目 + 学生错误答案 + 错误原因”。如果只填题目，它就只能泛泛讲题，没法真正对症。
+        </div>
+      </section>
+
+      <section id="explain">
+        <h2>6. “错题讲解”怎么用</h2>
+        <p>这里用来给某一道错题生成讲解，讲解会围绕学生这次具体错误展开。</p>
+
+        <div class="steps">
+          <div class="step">在下拉框选择一道错题。</div>
+          <div class="step">检查题目、学生答案、错因是否正确。</div>
+          <div class="step">点击“生成 / 查看讲解”。</div>
+          <div class="step">如果已经生成过，系统会优先读取缓存，不会重复调用 DeepSeek。</div>
+          <div class="step">如果你改过题目信息或想重新生成，可以勾选“重新生成”。</div>
+        </div>
+
+        <p>生成的讲解通常包含四个部分：</p>
+        <p>
+          <span class="tag">你错在哪里</span>
+          <span class="tag">一起想一想</span>
+          <span class="tag">正确解法</span>
+          <span class="tag">举一反三</span>
+        </p>
+      </section>
+
+      <section id="book">
+        <h2>7. “错题本”怎么用</h2>
+        <p>这里是复习中心。不是为了看所有题，而是为了知道今天该复习哪几题。</p>
+
+        <table>
+          <thead>
+            <tr><th>视图</th><th>作用</th><th>适合什么时候用</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>待复习</td><td>显示未掌握和复习中的题</td><td>每天打开后优先看这个</td></tr>
+            <tr><td>全部</td><td>显示所有错题</td><td>想整体翻看时用</td></tr>
+            <tr><td>按知识点</td><td>只看某个知识点的错题</td><td>专题复习时用</td></tr>
+            <tr><td>按状态</td><td>按未掌握、复习中、已掌握筛选</td><td>整理复习进度时用</td></tr>
+            <tr><td>按年级</td><td>只看初一、初二、初三题目</td><td>按学段复习时用</td></tr>
+          </tbody>
+        </table>
+
+        <h3>掌握状态怎么改</h3>
+        <ul>
+          <li><code>未掌握</code>：现在还不会，或者看讲解后仍不稳。</li>
+          <li><code>复习中</code>：这次看懂了，但还需要再做类似题确认。</li>
+          <li><code>已掌握</code>：能独立做对同类题，可以暂时退出待复习。</li>
+        </ul>
+
+        <div class="callout">
+          <strong>建议用法</strong>
+          每次复习完一道题，不要立刻都改成“已掌握”。更稳的做法是先改成“复习中”，过两天再做相似题，如果还能做对，再改成“已掌握”。
+        </div>
+      </section>
+
+      <section id="analysis">
+        <h2>8. “学情分析”怎么看</h2>
+        <p>这里不是给单题讲解，而是看一段时间的整体情况。</p>
+
+        <table>
+          <thead>
+            <tr><th>指标</th><th>意思</th><th>怎么看</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>有效错题</td><td>去重后的错题数</td><td>比原始记录更适合分析</td></tr>
+            <tr><td>掌握率</td><td>已掌握错题占有效错题比例</td><td>刚开始低很正常</td></tr>
+            <tr><td>待复习</td><td>未掌握 + 复习中的题</td><td>这是当前最该处理的题</td></tr>
+            <tr><td>薄弱知识点</td><td>错题比较集中的具体知识点</td><td>用来决定先复习哪里</td></tr>
+            <tr><td>大方向</td><td>按上级知识点聚合</td><td>比如方程与不等式、函数等方向</td></tr>
+          </tbody>
+        </table>
+
+        <h3>什么时候生成 AI 学情报告</h3>
+        <p>建议至少录入 3-5 道真实错题后再生成。只有 1 道题时，报告容易过度解读。</p>
+
+        <div class="callout warn">
+          <strong>学情报告适合给谁看</strong>
+          它更适合家长或老师看，用来判断“孩子最近哪里薄弱、接下来怎么复习”。如果只是学生自己做一题，先看“错题讲解”和“相似题推荐”更直接。
+        </div>
+      </section>
+
+      <section id="recommend">
+        <h2>9. “相似题推荐”怎么用</h2>
+        <p>这是这个项目比较特别的地方：它不只按知识点推荐，还会按解题思路推荐。</p>
+
+        <div class="two">
+          <div class="card">
+            <b>第一层：同知识点</b>
+            <span>从数据库里找同一个知识点下的其他题。比如当前题是“一元二次方程”，就推荐其他一元二次方程题。</span>
+          </div>
+          <div class="card">
+            <b>第二层：思路相近</b>
+            <span>用 Chroma 向量检索，从其他知识点里找思路相近的题。比如因式分解、判别式、移项变号这些共同能力。</span>
+          </div>
+        </div>
+
+        <h3>怎么操作</h3>
+        <div class="steps">
+          <div class="step">选择目标错题。</div>
+          <div class="step">设置同知识点数量和思路相近数量，默认 5 道就够。</div>
+          <div class="step">保持“先同步向量库”勾选，尤其是刚录入新题后。</div>
+          <div class="step">点击“生成推荐”。</div>
+          <div class="step">先做同知识点题，再做思路相近题。</div>
+        </div>
+
+        <h3>推荐结果怎么看</h3>
+        <p><span class="tag">同知识点</span> 表示直接巩固。<span class="tag warn">思路相近</span> 表示知识点不同，但思维方法或易错点相近。</p>
+        <p>例如：一元二次方程里因式分解漏根，可能推荐到分式运算里的因式分解题，或者二次函数里求 x 轴交点的题。</p>
+      </section>
+
+      <section id="real-data">
+        <h2>10. 一道真实错题应该怎么准备</h2>
+        <p>你可以按这个模板准备，填进网页里：</p>
+        <pre><code>题目内容：
+学生错误答案：
+学生错误原因：
+正确答案：
+详细解析：
+年级：
+题型：
+难度：</code></pre>
+
+        <h3>示例</h3>
+        <table>
+          <tbody>
+            <tr><th>题目内容</th><td>解方程：x^2 - 7x + 12 = 0。</td></tr>
+            <tr><th>学生错误答案</th><td>x = 3</td></tr>
+            <tr><th>学生错误原因</th><td>因式分解后只写了一个根，漏掉另一个因式对应的解。</td></tr>
+            <tr><th>正确答案</th><td>x = 3 或 x = 4</td></tr>
+            <tr><th>详细解析</th><td>因式分解得 (x - 3)(x - 4) = 0，所以 x = 3 或 x = 4。</td></tr>
+            <tr><th>年级 / 题型 / 难度</th><td>初三 / 解答 / 基础</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <strong>如果不知道错误原因怎么办</strong>
+          可以先写“学生未说明原因，请根据错误答案分析”。但是如果能写出真实错因，AI 讲解会更像老师对着这个孩子讲。
+        </div>
+      </section>
+
+      <section id="faq">
+        <h2>11. 常见问题</h2>
+
+        <h3>为什么有很多模拟题？</h3>
+        <p>那是为了测试相似题推荐是否能跑通。真实使用时，重点应该逐步录入孩子自己的错题。</p>
+
+        <h3>为什么点“生成讲解”要等一会儿？</h3>
+        <p>因为它会调用 DeepSeek。题目越长、网络越慢，等待越明显。</p>
+
+        <h3>为什么第一次用相似题推荐比较慢？</h3>
+        <p>因为要加载中文 embedding 模型 <code>BAAI/bge-small-zh-v1.5</code>，并把错题同步到本地 Chroma。后面会快一些。</p>
+
+        <h3>为什么推荐结果有时看起来不是同一个知识点？</h3>
+        <p>这是正常的。“思路相近”故意不限制同知识点，它找的是共同解题能力，比如因式分解、判别式、移项变号、数形结合。</p>
+
+        <h3>数据库和向量库在哪里？</h3>
+        <p>SQLite 数据库是 <code>mistakes.db</code>，Chroma 向量库是 <code>mistake_chroma_db/</code>。它们都是本地运行时数据，不上传到 GitHub。</p>
+
+        <h3>能不能给真实学生长期用？</h3>
+        <p>当前适合本地测试和个人使用。如果要给真实学生长期使用，需要补隐私说明、数据清空、备份、权限控制等产品化能力。</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="footer shell">
+    K12 数学错题讲解助手 · 本手册对应当前 Streamlit 网页端版本
+  </div>
+</body>
+</html>

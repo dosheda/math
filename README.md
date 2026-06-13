@@ -15,7 +15,7 @@
 
 | 模块 | 技术 | 说明 |
 | --- | --- | --- |
-| 语言 | Python | 当前项目以脚本和模块形式实现 |
+| 语言/界面 | Python + Streamlit | 当前提供本地网页工作台 |
 | 数据库 | SQLite | 本地保存知识点和错题 |
 | AI | DeepSeek API + OpenAI SDK | 自动归类、错题讲解、学情报告 |
 | 向量库 | ChromaDB `PersistentClient` | 本地保存错题向量 |
@@ -84,6 +84,7 @@
 
 ```text
 .
+├── app.py                           # Streamlit 网页工作台
 ├── mistake_db.py                    # SQLite 数据库与统计逻辑
 ├── mistake_ai.py                    # DeepSeek 自动归类、讲解、学情报告
 ├── mistake_recommender.py           # Chroma 向量库同步与相似题推荐
@@ -106,6 +107,8 @@ mistake_chroma_db/   # Chroma 向量库，本地运行时目录，不提交 git
 ```
 
 ## 如何运行
+
+网页端操作说明可以先看本地文件：`使用手册.html`。这份手册按实际页面顺序解释了录入错题、生成讲解、错题本、学情分析和相似题推荐。
 
 ### 1. 克隆项目
 
@@ -154,7 +157,28 @@ python test_mistake_db.py
 - 录入测试错题。
 - 查询并打印结果。
 
-### 6. 测试自动归类
+### 6. 启动网页界面
+
+```powershell
+python -m streamlit run app.py
+```
+
+启动后浏览器打开：
+
+```text
+http://localhost:8501
+```
+
+网页里可以完成：
+
+- 录入真实错题。
+- 自动归类或手动选择知识点。
+- 生成针对性讲解。
+- 查看错题本和待复习题。
+- 生成学情报告。
+- 推荐同知识点和思路相近的题。
+
+### 7. 测试自动归类
 
 ```powershell
 python test_auto_classify.py
@@ -166,7 +190,7 @@ python test_auto_classify.py
 - 小学题：应提示超出支持范围。
 - 非数学题：应提示超出支持范围。
 
-### 7. 测试对症讲解
+### 8. 测试对症讲解
 
 ```powershell
 python test_generate_explanation.py
@@ -174,7 +198,7 @@ python test_generate_explanation.py
 
 这个脚本会读取测试错题，调用 DeepSeek 生成针对学生具体错因的讲解，并写回数据库缓存。
 
-### 8. 测试错题本和学情报告
+### 9. 测试错题本和学情报告
 
 ```powershell
 python test_mistake_book_analysis.py
@@ -189,7 +213,7 @@ python test_mistake_book_analysis.py
 - 统计概览。
 - AI 学情报告。
 
-### 9. 准备相似题测试数据
+### 10. 准备相似题测试数据
 
 ```powershell
 python seed_similar_mistake_samples.py
@@ -199,7 +223,7 @@ python seed_similar_mistake_samples.py
 
 注意：它会调用 DeepSeek 自动归类，首次运行会产生 API 调用成本。重复运行时，已存在的题会自动跳过。
 
-### 10. 测试相似题推荐
+### 11. 测试相似题推荐
 
 ```powershell
 python test_similar_recommendations.py
@@ -273,7 +297,7 @@ for item in result["recommendations"]:
 
 ## 当前限制
 
-- 目前没有 Web UI，主要通过 Python 脚本运行。
+- Streamlit UI 已可用，但还不是完整产品化系统。
 - 测试还是脚本式测试，尚未迁移到 `pytest`。
 - DeepSeek 相关功能需要网络和 `DEEPSEEK_API_KEY`。
 - 相似题推荐依赖 embedding 语义相似度和轻量“解题思路标签”，后续可以用人工标注评测集继续调优。
