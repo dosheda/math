@@ -7,9 +7,10 @@
 ## 当前整体状态
 - 数学错题助手的核心后端闭环已完成：数据库、知识点库、错题录入、DeepSeek 自动归类、对症讲解缓存、错题本、学情统计、AI 学情报告、相似题推荐都已可运行。
 - 当前仍是本地 Python 模块 + 命令行测试脚本阶段，暂时没有 Web UI，也还没有正式 README。
-- 本次发布目标：初始化 git，提交当前源码和协作文档，推送到 `dosheda/math`，并发布首个版本。
+- 已初始化 git，推送到 `dosheda/math`，并发布首个版本 `v0.1.0`。
 
 ## 已完成
+- 【2026-06-13】初始化 git，提交源码、测试脚本、`AGENTS.md`、`PROGRESS.md` 和 `.gitignore`，推送到 `dosheda/math` 并发布 `v0.1.0`。
 - 【2026-06-13】新增相似题推荐模块 `mistake_recommender.py`：第一层按同知识点推荐，第二层用 Chroma 向量检索跨知识点“思路相近”题。
 - 【2026-06-13】新增 `seed_similar_mistake_samples.py`，准备 48 道集中在“方程与不等式”和“函数”的初中数学测试错题；录入时走现有 DeepSeek 自动归类流程。
 - 【2026-06-13】新增 `test_similar_recommendations.py`，验证 SQLite -> Chroma 同步和两层推荐结果。
@@ -24,13 +25,13 @@
 - 以上两个都是运行时数据，不应提交到 git；新环境可通过脚本重新生成。
 
 ## 当前任务
-- 任务：补全 `AGENTS.md` 和 `PROGRESS.md`，初始化 git，推送到 `dosheda/math`，创建首个 release。
+- 任务：暂无进行中的开发任务，等待用户下一步指示。
 - 相关文件：
   - `AGENTS.md`
   - `PROGRESS.md`
   - `.gitignore`
   - 全部源码和测试脚本
-- 卡点/待决定：无阻塞。`dosheda/math` 仓库可访问，GitHub CLI 已登录。
+- 卡点/待决定：无阻塞。
 
 ## 下一步计划
 1. 补正式 `README.md`：项目介绍、安装依赖、环境变量、运行测试、生成样例、同步向量库、推荐函数示例。
