@@ -1,311 +1,164 @@
 # K12 数学错题讲解助手
 
-一个本地运行的 K12 数学错题助手：把错题录入后，自动判断知识点，生成针对学生具体错误的讲解，并提供错题本、学情分析和相似题推荐。
+> 把一个孩子的错题，沉淀成**可追踪、可统计、可检索**的纵向学习资产。
 
-## 项目特点
+![version](https://img.shields.io/badge/version-v0.5.0-0f766e)
+![python](https://img.shields.io/badge/Python-3.11%2B-3776AB)
+![stack](https://img.shields.io/badge/Streamlit%20%C2%B7%20SQLite%20%C2%B7%20Chroma-local--first-64748b)
+![ai](https://img.shields.io/badge/AI-DeepSeek-b7791f)
 
-- **完整错题闭环**：录入错题 -> 自动归类 -> 对症讲解 -> 错题本复习 -> 学情分析 -> 相似题推荐。
-- **初中数学知识点库**：内置 24 个核心知识点，覆盖数与式、方程与不等式、函数、几何、统计概率等方向。
-- **AI 自动归类**：调用 DeepSeek 判断题目所属知识点；小学题、高中题、非数学题或库外题会提示超范围。
-- **针对错因讲解**：不是只给标准答案，而是围绕学生的错误答案和错误原因生成讲解。
-- **两层相似题推荐**：同知识点题目直接推荐；跨知识点题目用 Chroma 向量检索按“解题思路相近”推荐。
-- **本地优先**：SQLite 和 Chroma 都保存在本地目录，不启动数据库服务，不开放 Chroma 网络端口。
+一个**本地运行**的初中数学错题助手：录入错题后自动判断知识点，围绕学生**具体错误**生成讲解，并提供错题本、学情分析和相似题推荐，形成 **录入 → 归类 → 讲解 → 复习 → 分析 → 推荐** 的学习闭环。
+
+```
+录入真实错题 → 自动判断知识点 → 对症讲解 → 错题本复习 → 学情分析 → 相似题推荐
+```
+
+---
+
+## 设计理念：价值到底在哪
+
+这一节回答一个尖锐的问题——**数学是确定性的，DeepSeek 本来就会解题，那这个项目有什么用？**
+
+### 大模型已经免费给你的（不值得投入的部分）
+
+- **数学知识本身**：知识点、解法、常见易错点，大模型全都会。项目里的知识点库**不是在教模型知识**。
+- **单道题的讲解**：把「题目 + 学生错答 + 错因」粘进聊天窗，一样能生成讲解。
+
+因为数学有标准答案，`x = 3 或 4` 不管哪本教材都一样，所以**「生成答案 / 讲解」这层没有护城河**，任何人随时可替代。如果你只是偶尔问一道题，直接用聊天窗就够了。
+
+### 大模型做不到、只能靠本地沉淀的部分（真正的价值）
+
+大模型是**无状态**的——它不记得你的孩子。本地数据库存的，恰恰是模型永远不知道的「事实」：
+
+| 能力 | 为什么大模型做不到 |
+| --- | --- |
+| **纵向记忆** | 这孩子 3 个月错了哪些题、哪个知识点反复错、复习了几次、掌握到什么程度——模型不知道，`mistakes` 表知道。 |
+| **确定性统计** | 掌握率、薄弱点排序、按大方向聚合，用 SQL 算又快又准又可复现；不该让模型去「数」上百条记录。 |
+| **对自有数据检索** | 相似题推荐是在**你自己积累的错题**里找思路相近的下一题，没有向量库模型捞不到。 |
+
+> **一句话**：防御性价值 = 「结构化的纵向错题状态 + 确定性学情统计 + 对自有数据的检索」。大模型只是其中一个零件，不是产品本身。**越靠近数据沉淀和统计的部分越有价值，越靠近知识和单题讲解的部分越可被聊天窗替代。**
+
+### 私有知识库：护城河的真正来源
+
+通用数学知识没有壁垒，壁垒只可能来自**模型训练数据里没有、或被「平均掉」的私有内容**。对 K12 数学，真正值得私有导入的是：
+
+- **方法边界（进度）**：某版本 / 某班这学期只教到配方法、还没讲判别式——「当前允许用哪些方法」是纯私有约束，模型不可能知道。
+- **书写与表述规范**：某老师要求的解题格式、术语、评分点。
+- **私有题库 / 本校月考卷 / 名师讲法**：外面搜不到的内容，导入后做检索和风格对齐才有独占价值。
+- **地区考纲差异**：各地中考要求不同。
+
+也就是说，知识点库的正确定位不是「存数学知识（模型全会）」，而是「**存私有约束 + 私有内容锚点**」——同一份代码骨架，价值从 0 变成有护城河。
+
+---
+
+## 功能一览
+
+| 模块 | 能力 |
+| --- | --- |
+| **概览首页** | 关键指标（有效错题 / 掌握率 / 待复习 / 已掌握）+ 快捷操作 + 薄弱知识点 Top5 + 最近录入 |
+| **录入错题** | DeepSeek 自动归类或手动选知识点；**录入前查重**，重复题不重复入库；库外题（小学/高中/非数学）会提示超范围 |
+| **对症讲解** | 围绕学生**具体错答和错因**生成四段式讲解（你错在哪里 / 一起想一想 / 正确解法 / 举一反三），结果缓存 |
+| **错题本** | 待复习 / 全部 / 按知识点 / 按状态 / 按年级视图；**搜索 + 分页**；掌握状态更新、**编辑、删除**（删除同步清理向量） |
+| **学情分析** | 本地统计薄弱点、掌握率、上级方向聚合；调用 DeepSeek 生成家长/老师可读的学情报告（只发聚合摘要，不发原题） |
+| **相似题推荐** | 两层：① 同知识点直接巩固；② 跨知识点「思路相近」——用 **AI 提取的解题思路标签**做向量检索 |
+
+---
 
 ## 技术栈
 
-| 模块 | 技术 | 说明 |
+| 层 | 选型 | 说明 |
 | --- | --- | --- |
-| 语言/界面 | Python + Streamlit | 当前提供本地网页工作台 |
-| 数据库 | SQLite | 本地保存知识点和错题 |
-| AI | DeepSeek API + OpenAI SDK | 自动归类、错题讲解、学情报告 |
-| 向量库 | ChromaDB `PersistentClient` | 本地保存错题向量 |
+| 界面 | Python + Streamlit | 本地网页工作台，侧栏导航 + 仪表盘 |
+| 数据库 | SQLite（`mistakes.db`） | 本地保存知识点与错题，外键约束 + 参数化查询 |
+| AI | DeepSeek（OpenAI SDK 兼容） | 自动归类、对症讲解、学情报告、解题思路标签 |
+| 向量库 | ChromaDB `PersistentClient` | 本地落盘，不开网络端口 |
 | Embedding | `BAAI/bge-small-zh-v1.5` | 中文语义向量化 |
-| 测试 | Python 脚本 | 当前是脚本式端到端测试 |
 
-## 当前功能
+---
 
-### 1. 知识点库与错题库
+## 快速开始
 
-`mistake_db.py` 负责数据库逻辑：
+```powershell
+# 1. 克隆 & 进入
+git clone https://github.com/dosheda/math.git
+cd math
 
-- 创建 `knowledge_points` 知识点表。
-- 创建 `mistakes` 错题表。
-- 用外键把错题关联到知识点。
-- 预置初中数学核心知识点。
-- 支持按知识点、掌握状态、年级、待复习状态查询错题。
-- 支持统计每个知识点的错题数量和掌握情况。
+# 2. 虚拟环境 + 依赖
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 
-### 2. DeepSeek 自动归类
+# 3. 配置 DeepSeek API Key（只从系统环境变量读取）
+$env:DEEPSEEK_API_KEY = "你的 DeepSeek API Key"
 
-`mistake_ai.py` 负责 AI 能力：
+# 4. 启动网页
+python -m streamlit run app.py    # 浏览器打开 http://localhost:8501
+```
 
-- 输入一道题，把题目和知识点清单发给 DeepSeek。
-- 返回结构化结果：匹配的知识点 ID，或“超出支持范围 + 原因”。
-- 录入错题时自动关联知识点。
+> 网页端逐页操作说明见 `使用手册.html`。首次使用相似题推荐会加载 `BAAI/bge-small-zh-v1.5`，需要一点时间。
+> 没有配置 `DEEPSEEK_API_KEY` 时，网页仍可浏览错题本，但 AI 相关功能不可用。
 
-### 3. 针对学生错因生成讲解
+<details>
+<summary><b>命令行测试脚本（可选）</b></summary>
 
-讲解会按固定结构输出：
+| 脚本 | 作用 | 需要 Key |
+| --- | --- | --- |
+| `python test_mistake_db.py` | 建表、预置知识点、录入/查询链路 | 否 |
+| `python test_auto_classify.py` | 自动归类（含超范围判断） | 是 |
+| `python test_generate_explanation.py` | 对症讲解生成 | 是 |
+| `python test_mistake_book_analysis.py` | 错题本 + 学情报告 | 是（报告） |
+| `python seed_similar_mistake_samples.py` | 录入约 48 道相似题测试数据 | 是 |
+| `python test_similar_recommendations.py` | 同步向量库 + 两层推荐 | 依赖 embedding |
 
-- 【你错在哪里】
-- 【一起想一想】
-- 【正确解法】
-- 【举一反三】
+批量脚本会调用 DeepSeek，涉及 API 成本，大批量运行前请留意。
+</details>
 
-生成结果会缓存到错题表的 `ai_explanation` 字段，同一道题不用每次重新生成。
-
-### 4. 错题本与学情分析
-
-支持：
-
-- 按知识点查看错题。
-- 按掌握状态查看错题：`未掌握`、`复习中`、`已掌握`。
-- 按年级查看错题。
-- 查看待复习错题：`未掌握` + `复习中`。
-- 统计薄弱知识点、整体掌握率、上级知识点方向。
-- 调用 DeepSeek 生成给家长/老师看的学情报告。
-
-统计口径：只统计数据库里真实录入的错题，每道错题算一次；同题同错答同知识点的重复测试记录默认只保留最新一条。
-
-### 5. 相似题推荐
-
-`mistake_recommender.py` 提供两层推荐：
-
-- **同知识点推荐**：从 SQLite 查询同一知识点下的其他错题。
-- **思路相近推荐**：把题目、知识点、错因、解析向量化后存入 Chroma，从其他知识点里找语义相近的题。
-
-例如，一道一元二次方程因式分解题，可能推荐到：
-
-- 同知识点下的其他一元二次方程题。
-- 分式运算里需要因式分解的题。
-- 二次函数里需要判别式或求零点的题。
+---
 
 ## 项目结构
 
 ```text
 .
-├── app.py                           # Streamlit 网页工作台
-├── mistake_db.py                    # SQLite 数据库与统计逻辑
-├── mistake_ai.py                    # DeepSeek 自动归类、讲解、学情报告
-├── mistake_recommender.py           # Chroma 向量库同步与相似题推荐
-├── seed_similar_mistake_samples.py  # 批量生成相似题推荐测试错题
-├── test_mistake_db.py               # 数据库链路测试
-├── test_auto_classify.py            # 自动归类测试
-├── test_generate_explanation.py     # AI 讲解测试
-├── test_mistake_book_analysis.py    # 错题本与学情分析测试
-├── test_similar_recommendations.py  # 相似题推荐测试
-├── requirements.txt                 # 依赖版本
-├── AGENTS.md                        # AI 协作规则
-└── PROGRESS.md                      # 当前进展记录
+├── app.py                           # Streamlit 网页工作台（导航 + 仪表盘 + 各页面）
+├── mistake_db.py                    # SQLite 数据库、统计、编辑/删除/查重
+├── mistake_ai.py                    # DeepSeek 归类、讲解、学情报告、解题思路标签
+├── mistake_recommender.py           # Chroma 向量同步与两层相似题推荐
+├── seed_similar_mistake_samples.py  # 批量测试错题
+├── test_*.py                        # 脚本式端到端测试
+├── 使用手册.html                     # 网页端逐页使用手册
+├── requirements.txt / AGENTS.md / PROGRESS.md
 ```
 
-运行后本地会生成：
+运行时本地生成（均不提交 git）：`mistakes.db`、`mistake_chroma_db/`。
 
-```text
-mistakes.db          # SQLite 数据库，本地运行时文件，不提交 git
-mistake_chroma_db/   # Chroma 向量库，本地运行时目录，不提交 git
-```
+---
 
-## 如何运行
+## 路线图
 
-网页端操作说明可以先看本地文件：`使用手册.html`。这份手册按实际页面顺序解释了录入错题、生成讲解、错题本、学情分析和相似题推荐。
+按「模型替代不了 + 价值/成本」排序。价值随 **错题数量 × 时间跨度 × 学生人数** 增长。
 
-### 1. 克隆项目
+| 方向 | 价值 | 成本 | 状态 |
+| --- | --- | --- | --- |
+| **AI 解题思路标签** 替代硬编码关键词 | 中高 | 低 | ✅ 已完成 |
+| **遗忘曲线 / 间隔复习**（用 `review_count`、`last_reviewed_at` 排今天该复习哪些，纯本地不烧 API） | 高 | 低-中 | 🔜 下一步 |
+| **掌握率趋势**（按时间留快照，看变化而非当前快照） | 中 | 中 | 计划中 |
+| **多学生 / 班级维度**（把工具从「一个孩子」推到「一个老师带一批」） | 高 | 高 | 计划中 |
+| **私有知识库导入**（教材版本 / 方法边界 / 私有题库 / 考纲） | 护城河 | 高 | 愿景 |
 
-```powershell
-git clone https://github.com/dosheda/math.git
-cd math
-```
+---
 
-### 2. 创建虚拟环境
+## 数据与安全
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-### 3. 安装依赖
-
-```powershell
-pip install -r requirements.txt
-```
-
-首次使用 `BAAI/bge-small-zh-v1.5` 时会下载或加载本地模型缓存，可能需要一些时间。
-
-### 4. 配置 DeepSeek API Key
-
-PowerShell 临时设置：
-
-```powershell
-$env:DEEPSEEK_API_KEY = "你的 DeepSeek API Key"
-```
-
-也可以在 Windows 系统环境变量里长期设置 `DEEPSEEK_API_KEY`。
-
-注意：不要把真实 API key 写入代码、README、`.env` 或任何会提交到 git 的文件。
-
-### 5. 初始化数据库并跑基础测试
-
-```powershell
-python test_mistake_db.py
-```
-
-这个脚本会：
-
-- 创建 SQLite 表。
-- 预置初中数学知识点。
-- 录入测试错题。
-- 查询并打印结果。
-
-### 6. 启动网页界面
-
-```powershell
-python -m streamlit run app.py
-```
-
-启动后浏览器打开：
-
-```text
-http://localhost:8501
-```
-
-网页里可以完成：
-
-- 录入真实错题。
-- 自动归类或手动选择知识点。
-- 生成针对性讲解。
-- 查看错题本和待复习题。
-- 生成学情报告。
-- 推荐同知识点和思路相近的题。
-
-### 7. 测试自动归类
-
-```powershell
-python test_auto_classify.py
-```
-
-这个脚本会测试：
-
-- 初中数学题：应自动归类。
-- 小学题：应提示超出支持范围。
-- 非数学题：应提示超出支持范围。
-
-### 8. 测试对症讲解
-
-```powershell
-python test_generate_explanation.py
-```
-
-这个脚本会读取测试错题，调用 DeepSeek 生成针对学生具体错因的讲解，并写回数据库缓存。
-
-### 9. 测试错题本和学情报告
-
-```powershell
-python test_mistake_book_analysis.py
-```
-
-这个脚本会打印：
-
-- 按知识点查询结果。
-- 按掌握状态查询结果。
-- 按年级查询结果。
-- 待复习错题。
-- 统计概览。
-- AI 学情报告。
-
-### 10. 准备相似题测试数据
-
-```powershell
-python seed_similar_mistake_samples.py
-```
-
-这个脚本内置 48 道初中数学测试错题，集中在“方程与不等式”和“函数”方向。
-
-注意：它会调用 DeepSeek 自动归类，首次运行会产生 API 调用成本。重复运行时，已存在的题会自动跳过。
-
-### 11. 测试相似题推荐
-
-```powershell
-python test_similar_recommendations.py
-```
-
-这个脚本会：
-
-- 检查并准备测试错题。
-- 把 SQLite 里的错题同步到 Chroma 本地向量库。
-- 选一道一元二次方程错题。
-- 打印同知识点推荐和跨知识点思路相近推荐。
-
-## 常用代码示例
-
-### 自动归类并录入错题
-
-```python
-import mistake_ai
-
-result = mistake_ai.add_mistake_with_auto_classification(
-    question_text="解方程：x^2 - 7x + 12 = 0。",
-    grade="初三",
-    question_type="解答",
-    difficulty="基础",
-    correct_answer="x = 3 或 x = 4",
-    detailed_solution="因式分解得 (x - 3)(x - 4) = 0，所以 x = 3 或 x = 4。",
-    student_answer="x = 3",
-    error_reason="因式分解后只写了一个根，漏掉另一个因式对应的解。",
-)
-
-print(result)
-```
-
-### 生成并缓存错题讲解
-
-```python
-import mistake_ai
-
-result = mistake_ai.generate_and_cache_mistake_explanation(mistake_id=1)
-print(result["explanation"])
-```
-
-### 生成学情报告
-
-```python
-import mistake_ai
-
-result = mistake_ai.generate_learning_report()
-print(result["report"])
-```
-
-### 同步向量库并推荐相似题
-
-```python
-import mistake_recommender
-
-mistake_recommender.sync_mistakes_to_vector_store()
-result = mistake_recommender.recommend_similar_mistakes(mistake_id=1)
-
-for item in result["recommendations"]:
-    print(item["recommendation_type"], item["knowledge_point_name"], item["question_text"])
-```
-
-## 数据与安全说明
-
-- `mistakes.db` 是本地 SQLite 数据库，不提交 git。
-- `mistake_chroma_db/` 是本地 Chroma 向量库，不提交 git。
-- `.env`、API key、密钥文件都不提交 git。
-- 当前 Chroma 只使用本地 `PersistentClient`，不以 HTTP server 方式运行，也不开放网络端口。
-- 如果后续接入真实学生数据，需要补充隐私说明、数据清空策略和第三方 API 数据流说明。
+- `mistakes.db`、`mistake_chroma_db/`、`.env`、API key 一律不提交 git。
+- API key 只从系统环境变量 `DEEPSEEK_API_KEY` 读取，不写进代码或文档。
+- 所有 SQL 参数化；SQLite 开启外键约束。
+- Chroma 仅本地 `PersistentClient`，不开放网络端口。
+- 学情报告只发送**统计聚合摘要**，不发送每道题原文。
+- 接入真实学生数据前，需补隐私说明、数据清空/备份策略和第三方 API 数据流说明。
 
 ## 当前限制
 
 - Streamlit UI 已可用，但还不是完整产品化系统。
-- 测试还是脚本式测试，尚未迁移到 `pytest`。
+- 测试仍是脚本式，尚未迁移到 `pytest` / CI。
+- 相似题推荐依赖 embedding 语义相似度 + AI 思路标签，后续可用人工标注评测集继续调优。
 - DeepSeek 相关功能需要网络和 `DEEPSEEK_API_KEY`。
-- 相似题推荐依赖 embedding 语义相似度和轻量“解题思路标签”，后续可以用人工标注评测集继续调优。
-
-## 后续规划
-
-- 增加 Streamlit 或 CLI 操作界面。
-- 补正式测试框架和 CI。
-- 增加错题导入、导出、备份和清空功能。
-- 增加真实学生数据场景下的隐私与权限设计。
-- 继续优化相似题推荐质量，让推荐更像老师布置的分层复习路径。

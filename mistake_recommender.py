@@ -12,6 +12,7 @@ K12 数学错题助手 —— 相似题推荐模块
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,27 @@ def get_chroma_collection():
     )
 
 
+def get_reasoning_tags(mistake: dict[str, Any]) -> list[str]:
+    """
+    取一道错题的解题思路标签。
+
+    优先用 AI 提取并缓存在 reasoning_tags 里的标签（由 mistake_ai 生成）；
+    如果这道题还没有缓存标签（例如没配 DeepSeek，或还没回填），
+    再退回到关键词规则 extract_reasoning_tags 作兜底，保证离线也能检索。
+    """
+    cached = str(mistake.get("reasoning_tags") or "").strip()
+    if cached:
+        try:
+            tags = json.loads(cached)
+            if isinstance(tags, list):
+                cleaned = [str(t).strip() for t in tags if str(t).strip()]
+                if cleaned:
+                    return cleaned
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return extract_reasoning_tags(mistake)
+
+
 def build_mistake_retrieval_text(mistake: dict[str, Any]) -> str:
     """
     把一道错题整理成适合向量检索的文本。
@@ -71,7 +93,7 @@ def build_mistake_retrieval_text(mistake: dict[str, Any]) -> str:
     这里不只放题目，也放知识点、错误原因和解析。
     原因是：我们想找的是“解题思路相近”，不是只找表面文字相似。
     """
-    tags = extract_reasoning_tags(mistake)
+    tags = get_reasoning_tags(mistake)
     tag_text = "，".join(tags) if tags else "无"
     return "\n".join(
         [
@@ -79,7 +101,6 @@ def build_mistake_retrieval_text(mistake: dict[str, Any]) -> str:
             f"知识点：{mistake.get('knowledge_point_name') or ''}",
             f"章节：{mistake.get('knowledge_point_chapter') or ''}",
             f"解题思路标签：{tag_text}",
-            f"相似能力标签：{tag_text}",
             f"学生错误答案：{mistake.get('student_answer') or ''}",
             f"错误原因：{mistake.get('error_reason') or ''}",
             f"正确答案：{mistake.get('correct_answer') or ''}",
@@ -90,11 +111,10 @@ def build_mistake_retrieval_text(mistake: dict[str, Any]) -> str:
 
 def extract_reasoning_tags(mistake: dict[str, Any]) -> list[str]:
     """
-    从题目、错因、解析里提取“解题思路标签”。
+    关键词规则版“解题思路标签”——仅作兜底。
 
-    这不是知识点分类，而是为了让向量检索更懂“为什么相似”：
-      比如一元二次方程的因式分解，和二次函数求 x 轴交点，
-      虽然知识点不同，但都可能用到“二次式因式分解、求零点”。
+    优先用 AI 提取的标签（见 get_reasoning_tags）；只有在没有缓存标签时才用这里的规则，
+    保证没有 DeepSeek 或还没回填标签时，向量检索仍然可用。
     """
     text = "\n".join(
         str(mistake.get(key) or "")

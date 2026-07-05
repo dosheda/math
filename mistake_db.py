@@ -108,6 +108,7 @@ def create_tables() -> bool:
                     student_answer TEXT NOT NULL,              -- 学生的错误答案
                     error_reason TEXT,                         -- 学生的错误原因：可选
                     ai_explanation TEXT,                       -- AI生成的讲解：可缓存，可为空
+                    reasoning_tags TEXT,                       -- AI提取的解题思路/能力标签(JSON数组)，供跨知识点相似题检索
                     mastery_status TEXT NOT NULL DEFAULT '未掌握', -- 掌握状态
                     review_count INTEGER NOT NULL DEFAULT 0,   -- 复习次数
                     last_reviewed_at TEXT,                     -- 最后复习时间：可为空
@@ -135,6 +136,13 @@ def create_tables() -> bool:
                 ON mistakes(mastery_status)
                 """
             )
+
+            # 轻量迁移：老库（已存在的 mistakes 表）补齐后加的列。
+            existing_columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(mistakes)").fetchall()
+            }
+            if "reasoning_tags" not in existing_columns:
+                conn.execute("ALTER TABLE mistakes ADD COLUMN reasoning_tags TEXT")
 
         return True
     except sqlite3.Error as exc:
@@ -1097,6 +1105,27 @@ def update_mistake_fields(mistake_id: int, fields: dict[str, Any]) -> bool:
             return True
     except sqlite3.Error as exc:
         print(f"[数据库错误] 编辑错题失败：{exc}")
+        return False
+
+
+def update_mistake_reasoning_tags(mistake_id: int, reasoning_tags: str | None) -> bool:
+    """
+    把 AI 提取的解题思路标签写回错题表（存 JSON 字符串）。
+
+    和 ai_explanation 一样是缓存字段：同一道题只在缺标签或强制刷新时才重新调用 AI。
+    """
+    try:
+        with get_connection() as conn:
+            cursor = conn.execute(
+                "UPDATE mistakes SET reasoning_tags = ? WHERE id = ?",
+                (reasoning_tags, mistake_id),
+            )
+            if cursor.rowcount == 0:
+                print(f"[提示] 没找到错题ID：{mistake_id}")
+                return False
+            return True
+    except sqlite3.Error as exc:
+        print(f"[数据库错误] 保存解题思路标签失败：{exc}")
         return False
 
 

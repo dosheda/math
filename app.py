@@ -553,6 +553,16 @@ def render_sidebar(api_ready: bool, mistakes: list[dict[str, Any]]) -> str:
             st.success(result.get("message", "同步完成。"))
             st.caption(f"同步：{result.get('synced_count', 0)} 条")
 
+        if st.button("生成思路标签", width="stretch", disabled=not api_ready):
+            with st.spinner("正在为缺标签的错题调用 DeepSeek..."):
+                tag_result = mistake_ai.backfill_reasoning_tags()
+            refresh_data_cache()
+            st.success(tag_result.get("message", "标签生成完成。"))
+            st.caption(
+                f"处理 {tag_result.get('processed', 0)} 道 · "
+                f"成功 {tag_result.get('generated', 0)} · 失败 {tag_result.get('failed', 0)}"
+            )
+
         with st.expander("演示数据"):
             st.caption("已有样例会自动跳过，不重复录入。首次运行会调用 DeepSeek。")
             if st.button("检查 48 道演示题", width="stretch", disabled=not api_ready):

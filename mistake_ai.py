@@ -362,6 +362,12 @@ def add_mistake_with_auto_classification(
             "message": "知识点匹配成功，但错题写入数据库失败。",
         }
 
+    # 顺带生成解题思路标签，供相似题推荐用；失败不影响录入结果。
+    try:
+        generate_and_cache_reasoning_tags(mistake_id)
+    except Exception as exc:
+        print(f"[提示] 录入成功，但生成解题思路标签失败：{exc}")
+
     return {
         "saved": True,
         "duplicate": False,
@@ -530,6 +536,180 @@ def generate_and_cache_mistake_explanation(
         "mistake_id": mistake_id,
         "explanation": explanation,
         "message": "AI 讲解已生成并写入数据库。" if ok else "AI 讲解已生成，但写入数据库失败。",
+    }
+
+
+def build_reasoning_tags_prompt(mistake: dict[str, Any]) -> list[dict[str, str]]:
+    """
+    构造提取“解题思路 / 能力 / 易错点”标签的 messages。
+
+    这些标签不是知识点分类，而是描述“解题时用到的方法和容易犯的错”，
+    目的是让相似题推荐能跨知识点找到思路相近的题
+    （例如一元二次方程漏根 ↔ 二次函数求 x 轴交点漏解）。
+    """
+    system_prompt = """
+你是初中数学解题分析老师。请从一道错题里提取“解题思路 / 能力 / 易错点”标签。
+
+用途：在不同知识点之间找“解题思路相近”的题，所以标签要跨知识点通用。
+
+要求：
+1. 标签描述解题用到的方法、能力或典型错误，不要用具体知识点名称当标签。
+   可参考风格：因式分解、判别式判断根、配方、移项变号、去分母、去括号漏乘、
+   数形结合、分类讨论、代入求参数、联立求交点、检验代回、漏根漏解、符号错误。
+2. 输出 3-6 个短词标签，中文。
+3. 只返回一个 JSON 对象，不要解释、不要 Markdown：
+   {"tags": ["因式分解", "漏根漏解"]}
+""".strip()
+
+    user_prompt = f"""
+【题目】
+{mistake.get("question_text")}
+
+【所属知识点】
+{mistake.get("knowledge_point_name")}
+
+【学生的错误答案】
+{mistake.get("student_answer")}
+
+【学生的错误原因】
+{mistake.get("error_reason") or "未填写"}
+
+【正确答案】
+{mistake.get("correct_answer")}
+
+【详细解析】
+{mistake.get("detailed_solution")}
+""".strip()
+
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
+def generate_reasoning_tags(mistake: dict[str, Any]) -> list[str] | None:
+    """调用 DeepSeek 为一道错题提取解题思路标签，返回标签列表或 None。"""
+    client = get_deepseek_client()
+    if client is None:
+        return None
+
+    try:
+        response = client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=build_reasoning_tags_prompt(mistake),
+            temperature=0,
+            stream=False,
+        )
+        content = response.choices[0].message.content or ""
+        data = extract_json_object(content)
+        if not data:
+            return None
+        raw = data.get("tags")
+        if not isinstance(raw, list):
+            return None
+        tags: list[str] = []
+        for item in raw:
+            tag = str(item).strip()
+            if tag and tag not in tags:
+                tags.append(tag)
+            if len(tags) >= 6:
+                break
+        return tags or None
+    except Exception as exc:
+        print(f"[AI错误] 提取解题思路标签失败：{exc}")
+        return None
+
+
+def generate_and_cache_reasoning_tags(
+    mistake_id: int,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
+    """
+    给指定错题生成解题思路标签，并缓存到 mistakes.reasoning_tags（JSON 字符串）。
+
+    和讲解缓存同样的思路：已有标签且不强制刷新时直接读缓存，不重复调用 DeepSeek。
+    """
+    mistake = mistake_db.get_mistake_detail(mistake_id)
+    if mistake is None:
+        return {"saved": False, "cached": False, "tags": [], "message": "找不到这道错题。"}
+
+    existing = str(mistake.get("reasoning_tags") or "").strip()
+    if existing and not force_refresh:
+        try:
+            cached = json.loads(existing)
+        except (json.JSONDecodeError, TypeError):
+            cached = []
+        return {
+            "saved": True,
+            "cached": True,
+            "tags": cached if isinstance(cached, list) else [],
+            "message": "已读取缓存标签，没有重复调用 DeepSeek。",
+        }
+
+    tags = generate_reasoning_tags(mistake)
+    if not tags:
+        return {"saved": False, "cached": False, "tags": [], "message": "解题思路标签生成失败。"}
+
+    ok = mistake_db.update_mistake_reasoning_tags(
+        mistake_id, json.dumps(tags, ensure_ascii=False)
+    )
+    return {
+        "saved": ok,
+        "cached": False,
+        "tags": tags,
+        "message": "解题思路标签已生成并写入。" if ok else "标签已生成，但写入数据库失败。",
+    }
+
+
+def backfill_reasoning_tags(force_refresh: bool = False) -> dict[str, Any]:
+    """
+    批量为缺少解题思路标签的错题生成标签。
+
+    force_refresh=False：只处理还没有标签的题（增量，成本可控）。
+    force_refresh=True：所有题重新生成（会对每道题都调用一次 DeepSeek）。
+    """
+    mistakes = mistake_db.get_all_mistakes_with_knowledge()
+    targets = [
+        m
+        for m in mistakes
+        if force_refresh or not str(m.get("reasoning_tags") or "").strip()
+    ]
+
+    if not targets:
+        return {
+            "total": len(mistakes),
+            "processed": 0,
+            "generated": 0,
+            "failed": 0,
+            "message": "所有错题都已有解题思路标签，无需生成。",
+        }
+
+    if get_deepseek_client() is None:
+        return {
+            "total": len(mistakes),
+            "processed": 0,
+            "generated": 0,
+            "failed": 0,
+            "message": f"缺少环境变量 {DEEPSEEK_API_KEY_ENV}，无法生成标签。",
+        }
+
+    generated = 0
+    failed = 0
+    for mistake in targets:
+        tags = generate_reasoning_tags(mistake)
+        if tags and mistake_db.update_mistake_reasoning_tags(
+            int(mistake["id"]), json.dumps(tags, ensure_ascii=False)
+        ):
+            generated += 1
+        else:
+            failed += 1
+
+    return {
+        "total": len(mistakes),
+        "processed": len(targets),
+        "generated": generated,
+        "failed": failed,
+        "message": f"已为 {generated} 道错题生成解题思路标签（失败 {failed} 道）。",
     }
 
 
