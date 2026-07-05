@@ -316,9 +316,25 @@ def add_mistake_with_auto_classification(
         print(f"[超出支持范围] {message}")
         return {
             "saved": False,
+            "duplicate": False,
             "mistake_id": None,
             "classification": classification,
             "message": message,
+        }
+
+    # 录入前查重：同知识点、同题目、同学生错答，视为重复录入，直接指回已有错题。
+    existing = mistake_db.find_existing_mistake(
+        classification["knowledge_point_id"],
+        question_text,
+        student_answer,
+    )
+    if existing is not None:
+        return {
+            "saved": False,
+            "duplicate": True,
+            "mistake_id": int(existing["id"]),
+            "classification": classification,
+            "message": f"这道题已存在（#{existing['id']}），未重复录入。",
         }
 
     mistake_id = mistake_db.add_mistake(
@@ -340,6 +356,7 @@ def add_mistake_with_auto_classification(
     if mistake_id is None:
         return {
             "saved": False,
+            "duplicate": False,
             "mistake_id": None,
             "classification": classification,
             "message": "知识点匹配成功，但错题写入数据库失败。",
@@ -347,6 +364,7 @@ def add_mistake_with_auto_classification(
 
     return {
         "saved": True,
+        "duplicate": False,
         "mistake_id": mistake_id,
         "classification": classification,
         "message": "错题已自动归类并录入。",

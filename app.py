@@ -295,10 +295,17 @@ def configure_page() -> None:
     )
 
 
-def bootstrap_data() -> None:
-    """启动页面时确保数据库和知识点库存在。"""
+@st.cache_resource(show_spinner=False)
+def bootstrap_data() -> bool:
+    """
+    启动时确保数据库和知识点库存在。
+
+    用 cache_resource 保证建表和预置知识点在整个进程里只跑一次，
+    而不是每次 Streamlit rerun 都重复建表、逐条尝试插入 24 个知识点。
+    """
     mistake_db.create_tables()
     mistake_db.seed_core_knowledge_points()
+    return True
 
 
 def has_deepseek_key() -> bool:
@@ -306,14 +313,29 @@ def has_deepseek_key() -> bool:
     return bool(os.environ.get(mistake_ai.DEEPSEEK_API_KEY_ENV))
 
 
+@st.cache_data(show_spinner=False)
 def all_mistakes() -> list[dict[str, Any]]:
-    """读取全部错题，默认按 ID 倒序。"""
+    """读取全部错题，默认按 ID 倒序。结果缓存，写操作后由 refresh_data_cache 清理。"""
     return mistake_db.get_all_mistakes_with_knowledge()
 
 
+@st.cache_data(show_spinner=False)
 def all_knowledge_points() -> list[dict[str, Any]]:
-    """读取知识点清单，给手动归类和筛选使用。"""
+    """读取知识点清单，给手动归类和筛选使用。结果缓存。"""
     return mistake_db.list_knowledge_points()
+
+
+@st.cache_data(show_spinner=False)
+def learning_overview() -> dict[str, Any]:
+    """读取去重后的学情概览。侧栏和学情分析共用同一份缓存，避免一次渲染算两遍。"""
+    return mistake_db.build_learning_overview(deduplicate=True)
+
+
+def refresh_data_cache() -> None:
+    """任何写操作（录入/编辑/删除/更新状态/同步演示题）后调用，让缓存重新取数。"""
+    all_mistakes.clear()
+    all_knowledge_points.clear()
+    learning_overview.clear()
 
 
 def truncate_text(value: Any, limit: int = 56) -> str:
@@ -385,7 +407,7 @@ def render_sidebar(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
         st.write("Chroma：", str(mistake_recommender.CHROMA_DB_PATH.name))
 
         st.markdown("#### 数据")
-        overview = mistake_db.build_learning_overview(deduplicate=True)
+        overview = learning_overview()
         st.metric("原始记录", overview.get("total_records", 0))
         st.metric("有效错题", overview.get("total_mistakes", 0))
         st.metric("待复习", overview.get("pending_review_count", 0))
@@ -404,6 +426,7 @@ def render_sidebar(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
 
                 with st.spinner("正在检查演示题..."):
                     stats = seed_similar_mistake_samples.seed_samples()
+                refresh_data_cache()
                 st.json(stats)
 
         st.markdown("---")
@@ -557,29 +580,48 @@ def render_entry_tab(api_ready: bool) -> None:
             )
             mistake_id = result.get("mistake_id")
         else:
-            mistake_id = mistake_db.add_mistake(
-                question_text=question_text,
-                grade=grade,
-                question_type=question_type,
-                difficulty=difficulty,
-                knowledge_point_id=int(manual_kp_id),
-                correct_answer=correct_answer,
-                detailed_solution=detailed_solution,
-                student_answer=student_answer,
-                error_reason=error_reason,
-                mastery_status=mastery_status,
+            existing = mistake_db.find_existing_mistake(
+                int(manual_kp_id), question_text, student_answer
             )
-            result = {
-                "saved": mistake_id is not None,
-                "mistake_id": mistake_id,
-                "message": "错题已录入。",
-                "classification": {"reason": "手动选择知识点"},
-            }
+            if existing is not None:
+                result = {
+                    "saved": False,
+                    "duplicate": True,
+                    "mistake_id": int(existing["id"]),
+                    "message": f"这道题已存在（#{existing['id']}），未重复录入。",
+                    "classification": {"reason": "手动选择知识点"},
+                }
+                mistake_id = None
+            else:
+                mistake_id = mistake_db.add_mistake(
+                    question_text=question_text,
+                    grade=grade,
+                    question_type=question_type,
+                    difficulty=difficulty,
+                    knowledge_point_id=int(manual_kp_id),
+                    correct_answer=correct_answer,
+                    detailed_solution=detailed_solution,
+                    student_answer=student_answer,
+                    error_reason=error_reason,
+                    mastery_status=mastery_status,
+                )
+                result = {
+                    "saved": mistake_id is not None,
+                    "duplicate": False,
+                    "mistake_id": mistake_id,
+                    "message": "错题已录入。",
+                    "classification": {"reason": "手动选择知识点"},
+                }
 
     if not result.get("saved"):
-        st.error(result.get("message", "保存失败。"))
+        if result.get("duplicate"):
+            st.warning(result.get("message", "这道题已存在，未重复录入。"))
+        else:
+            st.error(result.get("message", "保存失败。"))
         return
 
+    # 录入成功后清理缓存，保证其他 Tab（错题本/学情/推荐）立刻看到新错题。
+    refresh_data_cache()
     st.success(f"已保存错题 #{mistake_id}")
     st.session_state["last_mistake_id"] = int(mistake_id)
 
@@ -663,8 +705,127 @@ def filtered_mistakes(view: str, mistakes: list[dict[str, Any]]) -> list[dict[st
     return mistake_db.get_mistakes_by_knowledge_point(kp_id)
 
 
+def search_mistakes(items: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    """按关键词过滤错题：命中题目、知识点或学生答案即可。"""
+    query = query.strip()
+    if not query:
+        return items
+    return [
+        item
+        for item in items
+        if query in str(item.get("question_text") or "")
+        or query in str(item.get("knowledge_point_name") or "")
+        or query in str(item.get("student_answer") or "")
+    ]
+
+
+def render_mistake_admin(item: dict[str, Any]) -> None:
+    """错题本里单道错题的管理面板：更新状态、编辑内容、删除。"""
+    mid = int(item["id"])
+
+    st.markdown("**更新掌握状态**")
+    current_status = item.get("mastery_status") or "未掌握"
+    col_a, col_b, col_c = st.columns([1, 1, 1])
+    with col_a:
+        new_status = st.selectbox(
+            "掌握状态",
+            MASTERY_OPTIONS,
+            index=MASTERY_OPTIONS.index(current_status) if current_status in MASTERY_OPTIONS else 0,
+            key=f"status_{mid}",
+        )
+    with col_b:
+        increase = st.checkbox("计入复习次数", value=True, key=f"review_{mid}")
+    with col_c:
+        st.write("")
+        st.write("")
+        if st.button("保存状态", key=f"save_status_{mid}", width="stretch"):
+            if mistake_db.update_mistake_mastery(mid, new_status, increase_review_count=increase):
+                refresh_data_cache()
+                st.success("已更新。")
+                st.rerun()
+            else:
+                st.error("更新失败。")
+
+    st.markdown("---")
+    with st.form(f"edit_form_{mid}"):
+        st.markdown("**编辑内容**")
+        e_question = st.text_area(
+            "题目", value=item.get("question_text") or "", key=f"e_q_{mid}", height=100, max_chars=1200
+        )
+        col_l, col_r = st.columns(2)
+        with col_l:
+            e_student = st.text_area(
+                "学生答案", value=item.get("student_answer") or "", key=f"e_s_{mid}", height=80, max_chars=600
+            )
+            e_correct = st.text_area(
+                "正确答案", value=item.get("correct_answer") or "", key=f"e_c_{mid}", height=80, max_chars=800
+            )
+        with col_r:
+            e_reason = st.text_area(
+                "错误原因", value=item.get("error_reason") or "", key=f"e_r_{mid}", height=80, max_chars=800
+            )
+            grade_value = item.get("grade")
+            e_grade = st.selectbox(
+                "年级",
+                GRADE_OPTIONS,
+                index=GRADE_OPTIONS.index(grade_value) if grade_value in GRADE_OPTIONS else 1,
+                key=f"e_g_{mid}",
+            )
+            difficulty_value = item.get("difficulty")
+            e_difficulty = st.selectbox(
+                "难度",
+                DIFFICULTY_OPTIONS,
+                index=DIFFICULTY_OPTIONS.index(difficulty_value) if difficulty_value in DIFFICULTY_OPTIONS else 1,
+                key=f"e_d_{mid}",
+            )
+        e_solution = st.text_area(
+            "详细解析", value=item.get("detailed_solution") or "", key=f"e_sol_{mid}", height=110, max_chars=1600
+        )
+        if st.form_submit_button("保存修改", width="stretch"):
+            required = {
+                "题目": e_question,
+                "学生答案": e_student,
+                "正确答案": e_correct,
+                "详细解析": e_solution,
+            }
+            missing = [name for name, value in required.items() if not str(value or "").strip()]
+            if missing:
+                st.error("这些内容不能为空：" + "、".join(missing))
+            elif mistake_db.update_mistake_fields(
+                mid,
+                {
+                    "question_text": e_question,
+                    "student_answer": e_student,
+                    "error_reason": e_reason,
+                    "correct_answer": e_correct,
+                    "detailed_solution": e_solution,
+                    "grade": e_grade,
+                    "difficulty": e_difficulty,
+                },
+            ):
+                # 内容变了，旧的 AI 讲解作废，避免展示与新题目不符的过期讲解。
+                mistake_db.clear_mistake_ai_explanation(mid)
+                refresh_data_cache()
+                st.success("修改已保存，原讲解缓存已清空。")
+                st.rerun()
+            else:
+                st.error("保存失败。")
+
+    st.markdown("---")
+    st.markdown("**删除错题**")
+    confirm = st.checkbox("我确认删除这道错题", key=f"del_ok_{mid}")
+    if st.button("删除", key=f"del_{mid}", width="stretch", disabled=not confirm):
+        if mistake_db.delete_mistake(mid):
+            mistake_recommender.delete_mistake_from_vector_store(mid)
+            refresh_data_cache()
+            st.success("已删除。")
+            st.rerun()
+        else:
+            st.error("删除失败。")
+
+
 def render_mistake_book_tab(mistakes: list[dict[str, Any]]) -> None:
-    """错题本浏览和掌握状态更新。"""
+    """错题本浏览、搜索、分页、状态更新、编辑与删除。"""
     st.markdown('<div class="section-title">错题本</div>', unsafe_allow_html=True)
     view = st.radio(
         "视图",
@@ -672,47 +833,39 @@ def render_mistake_book_tab(mistakes: list[dict[str, Any]]) -> None:
         horizontal=True,
     )
     items = filtered_mistakes(view, mistakes)
+
+    query = st.text_input("搜索题目 / 知识点 / 学生答案", key="book_search")
+    items = search_mistakes(items, query)
     st.caption(f"当前视图共 {len(items)} 道")
 
     if not items:
-        st.info("这个视图下还没有错题。")
+        st.info("没有匹配的错题。")
         return
 
-    max_count = min(len(items), 30)
-    show_count = st.slider("显示数量", min_value=1, max_value=max_count, value=min(max_count, 10))
+    col_size, col_page = st.columns([1, 2])
+    with col_size:
+        page_size = st.selectbox("每页", [5, 10, 20, 50], index=1, key="book_page_size")
+    total_pages = max(1, (len(items) + page_size - 1) // page_size)
+    with col_page:
+        page = int(
+            st.number_input(
+                "页码", min_value=1, max_value=total_pages, value=1, step=1, key="book_page"
+            )
+        )
+    start = (page - 1) * page_size
+    page_items = items[start : start + page_size]
+    st.caption(f"第 {page} / {total_pages} 页")
 
-    for item in items[:show_count]:
+    for item in page_items:
         render_mistake_card(item, card_type="target")
-        with st.expander(f"更新 #{item['id']}"):
-            current_status = item.get("mastery_status") or "未掌握"
-            col_a, col_b, col_c = st.columns([1, 1, 1])
-            with col_a:
-                new_status = st.selectbox(
-                    "掌握状态",
-                    MASTERY_OPTIONS,
-                    index=MASTERY_OPTIONS.index(current_status) if current_status in MASTERY_OPTIONS else 0,
-                    key=f"status_{item['id']}",
-                )
-            with col_b:
-                increase = st.checkbox("计入复习次数", value=True, key=f"review_{item['id']}")
-            with col_c:
-                st.write("")
-                st.write("")
-                if st.button("保存状态", key=f"save_status_{item['id']}", width="stretch"):
-                    ok = mistake_db.update_mistake_mastery(int(item["id"]), new_status, increase_review_count=increase)
-                    if ok:
-                        st.success("已更新。刷新页面后可看到新状态。")
-                    else:
-                        st.error("更新失败。")
-
-            st.markdown("**详细解析**")
-            st.write(item.get("detailed_solution") or "暂无")
+        with st.expander(f"管理 #{item['id']}"):
+            render_mistake_admin(item)
 
 
 def render_learning_tab(api_ready: bool) -> None:
     """统计概览和 AI 学情报告。"""
     st.markdown('<div class="section-title">学情分析</div>', unsafe_allow_html=True)
-    overview = mistake_db.build_learning_overview(deduplicate=True)
+    overview = learning_overview()
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -852,13 +1005,13 @@ def render_app() -> None:
     with tabs[0]:
         render_entry_tab(api_ready)
     with tabs[1]:
-        render_explanation_tab(api_ready, all_mistakes())
+        render_explanation_tab(api_ready, mistakes)
     with tabs[2]:
-        render_mistake_book_tab(all_mistakes())
+        render_mistake_book_tab(mistakes)
     with tabs[3]:
         render_learning_tab(api_ready)
     with tabs[4]:
-        render_recommendation_tab(all_mistakes())
+        render_recommendation_tab(mistakes)
 
 
 if __name__ == "__main__":

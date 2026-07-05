@@ -1026,3 +1026,116 @@ def build_learning_overview(
             "weakest_points": [],
             "by_parent_area": [],
         }
+
+
+# 允许在错题本里直接编辑的字段白名单。
+# 只允许这些列被 UPDATE，避免外部传入任意列名造成 SQL 拼接风险。
+EDITABLE_MISTAKE_FIELDS = {
+    "question_text",
+    "student_answer",
+    "error_reason",
+    "correct_answer",
+    "detailed_solution",
+    "grade",
+    "question_type",
+    "difficulty",
+}
+
+
+def find_existing_mistake(
+    knowledge_point_id: int,
+    question_text: str,
+    student_answer: str,
+) -> dict[str, Any] | None:
+    """
+    录入前查重：判断这道题是否已经录入过。
+
+    去重口径和学情统计保持一致：
+      同一个知识点下，题目内容相同、学生错误答案相同，就认为是重复录入。
+    命中返回已存在的错题详情，否则返回 None。
+    """
+    try:
+        kp_id = int(knowledge_point_id)
+    except (TypeError, ValueError):
+        return None
+
+    target_key = (
+        kp_id,
+        _normalize_for_stats(question_text),
+        _normalize_for_stats(student_answer),
+    )
+    for existing in get_mistakes_by_knowledge_point(kp_id):
+        if _mistake_dedup_key(existing) == target_key:
+            return existing
+    return None
+
+
+def update_mistake_fields(mistake_id: int, fields: dict[str, Any]) -> bool:
+    """
+    编辑一道错题的内容字段。
+
+    只更新 EDITABLE_MISTAKE_FIELDS 白名单里的列；列名来自白名单，值用参数化传入，
+    不会把用户输入拼进 SQL。掌握状态和复习次数不走这里，仍由 update_mistake_mastery 管理。
+    """
+    updates = {key: fields[key] for key in fields if key in EDITABLE_MISTAKE_FIELDS}
+    if not updates:
+        print("[提示] 没有可更新的错题字段。")
+        return False
+
+    set_clause = ", ".join(f"{column} = ?" for column in updates)
+    params = list(updates.values()) + [mistake_id]
+
+    try:
+        with get_connection() as conn:
+            cursor = conn.execute(
+                f"UPDATE mistakes SET {set_clause} WHERE id = ?",
+                params,
+            )
+            if cursor.rowcount == 0:
+                print(f"[提示] 没找到错题ID：{mistake_id}")
+                return False
+            return True
+    except sqlite3.Error as exc:
+        print(f"[数据库错误] 编辑错题失败：{exc}")
+        return False
+
+
+def clear_mistake_ai_explanation(mistake_id: int) -> bool:
+    """
+    清空一道错题的 AI 讲解缓存。
+
+    编辑题目或答案后调用：旧讲解是针对旧内容生成的，直接作废，
+    下次在讲解页会重新生成，避免展示与新题目不符的过期讲解。
+    """
+    try:
+        with get_connection() as conn:
+            conn.execute(
+                "UPDATE mistakes SET ai_explanation = NULL WHERE id = ?",
+                (mistake_id,),
+            )
+            return True
+    except sqlite3.Error as exc:
+        print(f"[数据库错误] 清空 AI 讲解缓存失败：{exc}")
+        return False
+
+
+def delete_mistake(mistake_id: int) -> bool:
+    """
+    删除一道错题。
+
+    只删 mistakes 表里的记录，不影响知识点库。
+    向量库里的对应向量由上层调用 mistake_recommender.delete_mistake_from_vector_store 清理。
+    """
+    try:
+        with get_connection() as conn:
+            cursor = conn.execute(
+                "DELETE FROM mistakes WHERE id = ?",
+                (mistake_id,),
+            )
+            if cursor.rowcount == 0:
+                print(f"[提示] 没找到错题ID：{mistake_id}")
+                return False
+            return True
+    except sqlite3.Error as exc:
+        print(f"[数据库错误] 删除错题失败：{exc}")
+        return False

@@ -195,6 +195,22 @@ def sync_mistakes_to_vector_store(reset: bool = False) -> dict[str, Any]:
         return {"synced_count": 0, "collection_count": 0, "message": "同步失败。"}
 
 
+def delete_mistake_from_vector_store(mistake_id: int) -> bool:
+    """
+    从 Chroma 向量库里删除一道错题对应的向量。
+
+    错题被删除后调用这个函数，避免相似题推荐里再检索到已删除的题。
+    向量库的 id 规则和 sync_mistakes_to_vector_store 保持一致：mistake_{id}。
+    """
+    try:
+        collection = get_chroma_collection()
+        collection.delete(ids=[f"mistake_{int(mistake_id)}"])
+        return True
+    except Exception as exc:
+        print(f"[向量库错误] 删除错题向量失败：{exc}")
+        return False
+
+
 def normalize_text(value: str | None) -> str:
     """推荐去重用：把题目和错答压成稳定文本。"""
     return " ".join(str(value or "").split())
