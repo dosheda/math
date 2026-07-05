@@ -20,7 +20,7 @@ K12 数学错题讲解助手 —— SQLite 数据库模块
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -1168,3 +1168,101 @@ def delete_mistake(mistake_id: int) -> bool:
     except sqlite3.Error as exc:
         print(f"[数据库错误] 删除错题失败：{exc}")
         return False
+
+
+# ------------------------------------------------------------------
+# 间隔复习（遗忘曲线）
+# ------------------------------------------------------------------
+# 按复习次数决定下次复习的间隔天数：越复习越久，符合“先密后疏”的遗忘曲线。
+# review_count=0 -> 立即复习；之后 1、3、7、15、30、60 天。
+REVIEW_INTERVALS_DAYS = [0, 1, 3, 7, 15, 30, 60]
+
+# 复习优先级：未掌握最紧急，其次复习中，已掌握只做长间隔巩固。
+_REVIEW_STATUS_ORDER = {"未掌握": 0, "复习中": 1, "已掌握": 2}
+
+
+def _parse_iso_datetime(text: str | None) -> datetime | None:
+    """把数据库里的时间字符串解析成 datetime；解析失败返回 None。"""
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(str(text))
+    except ValueError:
+        return None
+
+
+def review_interval_days(review_count: int | None, mastery_status: str | None) -> int:
+    """
+    计算一道题的复习间隔（天）。
+
+    基准间隔按复习次数在 REVIEW_INTERVALS_DAYS 上取值，再按掌握状态微调：
+      - 未掌握：最多隔 1 天，尽快回来。
+      - 已掌握：至少隔 30 天，只做长间隔巩固。
+      - 复习中：用基准间隔。
+    """
+    idx = min(max(int(review_count or 0), 0), len(REVIEW_INTERVALS_DAYS) - 1)
+    base = REVIEW_INTERVALS_DAYS[idx]
+    if mastery_status == "未掌握":
+        return min(base, 1)
+    if mastery_status == "已掌握":
+        return max(base, 30)
+    return base
+
+
+def get_due_reviews(
+    deduplicate: bool = True,
+    include_mastered: bool = True,
+    now_dt: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """
+    今日应复习清单：按遗忘曲线算出“现在到期该复习”的错题，并排好优先级。
+
+    到期规则：
+      - 从没复习过的题，立即到期（新题优先巩固）。
+      - 复习过的题，到期时间 = 最后复习时间 + review_interval_days。
+      - include_mastered=True 时，已掌握的题也会在长间隔后回来做巩固。
+
+    每条会额外带上：review_interval_days、due_date、days_overdue、never_reviewed。
+    排序：未掌握 > 复习中 > 已掌握；同状态内逾期越久越靠前。
+    """
+    now_dt = now_dt or datetime.now()
+    mistakes = get_all_mistakes_with_knowledge()
+    if deduplicate:
+        mistakes, _ = deduplicate_mistakes(mistakes)
+
+    due: list[dict[str, Any]] = []
+    for mistake in mistakes:
+        status = mistake.get("mastery_status") or "未掌握"
+        if status == "已掌握" and not include_mastered:
+            continue
+
+        interval = review_interval_days(mistake.get("review_count"), status)
+        last_reviewed = _parse_iso_datetime(mistake.get("last_reviewed_at"))
+        if last_reviewed is None:
+            # 从没复习过：现在就该复习，逾期天数按录入时间估算。
+            created = _parse_iso_datetime(mistake.get("created_at")) or now_dt
+            due_dt = now_dt
+            days_overdue = max((now_dt - created).days, 0)
+            never_reviewed = True
+        else:
+            due_dt = last_reviewed + timedelta(days=interval)
+            if due_dt > now_dt:
+                continue
+            days_overdue = (now_dt - due_dt).days
+            never_reviewed = False
+
+        item = dict(mistake)
+        item["review_interval_days"] = interval
+        item["due_date"] = due_dt.date().isoformat()
+        item["days_overdue"] = days_overdue
+        item["never_reviewed"] = never_reviewed
+        due.append(item)
+
+    due.sort(
+        key=lambda it: (
+            _REVIEW_STATUS_ORDER.get(it.get("mastery_status") or "未掌握", 0),
+            -int(it.get("days_overdue", 0)),
+            it.get("created_at") or "",
+        )
+    )
+    return due

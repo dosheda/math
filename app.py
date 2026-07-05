@@ -431,11 +431,18 @@ def learning_overview() -> dict[str, Any]:
     return mistake_db.build_learning_overview(deduplicate=True)
 
 
+@st.cache_data(show_spinner=False)
+def due_reviews() -> list[dict[str, Any]]:
+    """按遗忘曲线算出的今日应复习清单。仪表盘和错题本共用。"""
+    return mistake_db.get_due_reviews(deduplicate=True)
+
+
 def refresh_data_cache() -> None:
     """任何写操作（录入/编辑/删除/更新状态/同步演示题）后调用，让缓存重新取数。"""
     all_mistakes.clear()
     all_knowledge_points.clear()
     learning_overview.clear()
+    due_reviews.clear()
 
 
 def truncate_text(value: Any, limit: int = 56) -> str:
@@ -600,6 +607,17 @@ def render_mistake_card(
     if recommendation_type:
         type_html = f'<span class="badge">{escape(str(recommendation_type))}</span>'
 
+    # 间隔复习信息：只有“今日复习”视图的错题才带这些字段。
+    review_html = ""
+    if item.get("never_reviewed"):
+        review_html = '<span class="badge warn">新题待复习</span>'
+    elif "days_overdue" in item:
+        overdue = int(item.get("days_overdue", 0) or 0)
+        if overdue > 0:
+            review_html = f'<span class="badge danger">逾期 {overdue} 天</span>'
+        else:
+            review_html = '<span class="badge">今日到期</span>'
+
     detail_html = ""
     if show_details:
         detail_html = (
@@ -617,7 +635,7 @@ def render_mistake_card(
         f'<span class="badge neutral">#{escape(str(item.get("id") or item.get("mistake_id")))}</span>'
         f'<span class="badge">{escape(str(item.get("knowledge_point_name") or "未归类"))}</span>'
         f'<span class="badge {status_class}">{escape(status)}</span>'
-        f"{type_html}{distance_html}"
+        f"{review_html}{type_html}{distance_html}"
         "</div>"
         f'<div class="question">{escape(str(item.get("question_text") or ""))}</div>'
         f"{detail_html}"
@@ -834,6 +852,8 @@ def render_explanation_tab(api_ready: bool, mistakes: list[dict[str, Any]]) -> N
 
 def filtered_mistakes(view: str, mistakes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """根据错题本视图筛选数据。"""
+    if view == "今日复习":
+        return due_reviews()
     if view == "待复习":
         return mistake_db.get_pending_review_mistakes()
     if view == "全部":
@@ -978,9 +998,12 @@ def render_mistake_book_tab(mistakes: list[dict[str, Any]]) -> None:
     st.markdown('<div class="section-title">错题本</div>', unsafe_allow_html=True)
     view = st.radio(
         "视图",
-        ["待复习", "全部", "按知识点", "按状态", "按年级"],
+        ["今日复习", "待复习", "全部", "按知识点", "按状态", "按年级"],
         horizontal=True,
+        key="book_view",
     )
+    if view == "今日复习":
+        st.caption("按遗忘曲线排出的今日到期题：复习后在下方“管理”里更新状态并计入复习次数，它会自动进入下一个复习间隔。")
     items = filtered_mistakes(view, mistakes)
 
     query = st.text_input("搜索题目 / 知识点 / 学生答案", key="book_search")
@@ -1175,15 +1198,16 @@ def render_dashboard(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
         return
 
     status_counts = overview.get("status_counts", {})
+    due_count = len(due_reviews())
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         metric_card("有效错题", total, "去重后")
     with c2:
         metric_card("掌握率", f"{overview.get('overall_mastery_rate', 0)}%", "已掌握占比", accent=True)
     with c3:
-        metric_card("待复习", overview.get("pending_review_count", 0), "未掌握 + 复习中")
+        metric_card("今日复习", due_count, "遗忘曲线到期", accent=due_count > 0)
     with c4:
-        metric_card("已掌握", status_counts.get("已掌握", 0), "已攻克")
+        metric_card("待复习", overview.get("pending_review_count", 0), "未掌握 + 复习中")
 
     st.markdown('<div class="section-title">快捷操作</div>', unsafe_allow_html=True)
     q1, q2, q3 = st.columns(3)
@@ -1191,7 +1215,8 @@ def render_dashboard(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
         if st.button("＋  录入新错题", width="stretch"):
             goto("录入错题")
     with q2:
-        if st.button("▤  去复习待复习题", width="stretch"):
+        if st.button(f"▤  今日复习（{due_count}）", width="stretch"):
+            st.session_state["book_view"] = "今日复习"
             goto("错题本")
     with q3:
         if st.button("◲  查看学情分析", width="stretch"):
