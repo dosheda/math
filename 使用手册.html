@@ -402,7 +402,8 @@
       <a href="#what">这个工具是干嘛的</a>
       <a href="#start">如何启动网页</a>
       <a href="#first-test">第一次怎么测</a>
-      <a href="#sidebar">左侧工作台</a>
+      <a href="#dashboard">概览首页</a>
+      <a href="#sidebar">侧栏导航与工具</a>
       <a href="#entry">录入错题</a>
       <a href="#explain">错题讲解</a>
       <a href="#book">错题本</a>
@@ -457,30 +458,54 @@ python -m streamlit run app.py</code></pre>
         </div>
       </section>
 
+      <section id="dashboard">
+        <h2>4. 概览首页（打开就看到的第一页）</h2>
+        <p>启动网页后，默认停在“概览”页。它把最关键的信息集中在一屏，先看这里，再决定去做什么。</p>
+
+        <table>
+          <thead>
+            <tr><th>区块</th><th>显示什么</th><th>怎么用</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>四个指标卡</td><td>有效错题、掌握率、待复习、已掌握</td><td>一眼看整体进度，掌握率会用强调色突出</td></tr>
+            <tr><td>快捷操作</td><td>录入新错题 / 去复习 / 查看学情分析</td><td>点一下直接跳到对应页面，不用再找侧栏</td></tr>
+            <tr><td>薄弱知识点 Top 5</td><td>错题集中的具体知识点，带掌握率进度条</td><td>决定先复习哪个知识点</td></tr>
+            <tr><td>掌握状态分布 / 薄弱大方向</td><td>未掌握·复习中·已掌握的数量，以及按大方向聚合</td><td>看结构性薄弱在哪个方向</td></tr>
+            <tr><td>最近录入</td><td>最新几道错题的卡片</td><td>快速回看刚录入的题，点“查看全部错题”进错题本</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <strong>还没有错题时</strong>
+          概览页会显示一个“欢迎”提示和一个“录入第一道错题”按钮，点它就能直接开始。
+        </div>
+      </section>
+
       <section id="sidebar">
-        <h2>4. 左侧工作台怎么看</h2>
-        <p>网页左侧是状态区，不是主要操作区，但它能帮你判断环境和数据是否正常。</p>
+        <h2>5. 侧栏导航与工具</h2>
+        <p>网页左侧是<strong>导航栏</strong>：所有页面都从这里切换（概览、录入错题、错题讲解、错题本、学情分析、相似题推荐）。导航下面还有常用数据和工具。</p>
 
         <table>
           <thead>
             <tr><th>区域</th><th>是什么意思</th><th>怎么看</th></tr>
           </thead>
           <tbody>
-            <tr><td>环境</td><td>显示 DeepSeek、SQLite、Chroma 是否在用</td><td>DeepSeek 显示“已配置”才可以用 AI 功能</td></tr>
-            <tr><td>数据</td><td>显示原始记录、有效错题、待复习数量</td><td>有效错题是去重后的统计口径</td></tr>
+            <tr><td>导航</td><td>六个页面的入口，点哪个就进哪个</td><td>当前页会高亮；也可以在概览页用快捷按钮跳转</td></tr>
+            <tr><td>有效错题 / 待复习</td><td>去重后的错题数和待复习数</td><td>随时掌握数据规模</td></tr>
             <tr><td>同步错题向量</td><td>把 SQLite 错题同步到 Chroma</td><td>做相似题推荐前可以点一下</td></tr>
-            <tr><td>演示数据</td><td>检查 48 道模拟错题是否已录入</td><td>真实使用时不一定要点</td></tr>
+            <tr><td>演示数据（折叠）</td><td>检查 48 道模拟错题是否已录入</td><td>真实使用时不一定要点</td></tr>
+            <tr><td>环境信息（折叠）</td><td>DeepSeek、SQLite、Chroma 状态</td><td>DeepSeek 显示“已配置”才能用 AI 功能</td></tr>
           </tbody>
         </table>
 
         <div class="callout">
           <strong>“原始记录”和“有效错题”为什么不一样</strong>
-          因为测试时可能重复录入同一道题。统计会把“同题、同错答、同知识点”的重复记录合并，只保留最新一条，所以有效错题可能少一些。
+          因为测试时可能重复录入同一道题。统计会把“同题、同错答、同知识点”的重复记录合并，只保留最新一条，所以有效错题可能少一些。此外，现在<strong>录入前会自动查重</strong>，重复的题会被拦下，不再写进库。
         </div>
       </section>
 
       <section id="entry">
-        <h2>5. “录入错题”怎么用</h2>
+        <h2>6. “录入错题”怎么用</h2>
         <p>这是最重要的入口。真实使用时，每一道错题都从这里开始。</p>
 
         <h3>需要填写什么</h3>
@@ -517,10 +542,15 @@ python -m streamlit run app.py</code></pre>
           <strong>不要只填题目</strong>
           这个工具的价值来自“题目 + 学生错误答案 + 错误原因”。如果只填题目，它就只能泛泛讲题，没法真正对症。
         </div>
+
+        <div class="callout">
+          <strong>重复录入会被拦下</strong>
+          如果同一个知识点下已经有“题目相同、学生错答相同”的题，保存时会提示“这道题已存在（#编号）”，不会重复写库。想改内容请去错题本里“编辑”，不要重复录入。
+        </div>
       </section>
 
       <section id="explain">
-        <h2>6. “错题讲解”怎么用</h2>
+        <h2>7. “错题讲解”怎么用</h2>
         <p>这里用来给某一道错题生成讲解，讲解会围绕学生这次具体错误展开。</p>
 
         <div class="steps">
@@ -538,10 +568,15 @@ python -m streamlit run app.py</code></pre>
           <span class="tag">正确解法</span>
           <span class="tag">举一反三</span>
         </p>
+
+        <div class="callout">
+          <strong>改过题目后，旧讲解会自动作废</strong>
+          如果你在错题本里编辑了题目或答案，这道题原来缓存的讲解会被清空，下次进这里会重新生成，保证讲解和最新内容一致。
+        </div>
       </section>
 
       <section id="book">
-        <h2>7. “错题本”怎么用</h2>
+        <h2>8. “错题本”怎么用</h2>
         <p>这里是复习中心。不是为了看所有题，而是为了知道今天该复习哪几题。</p>
 
         <table>
@@ -557,12 +592,28 @@ python -m streamlit run app.py</code></pre>
           </tbody>
         </table>
 
+        <h3>搜索与翻页</h3>
+        <p>视图下方有一个<strong>搜索框</strong>，输入关键词即可在当前视图里过滤（匹配题目、知识点或学生答案）。题多的时候用<strong>分页</strong>：可以选每页显示 5 / 10 / 20 / 50 道，再用页码跳转，不会一次把所有题堆在一屏。</p>
+
         <h3>掌握状态怎么改</h3>
+        <p>展开每道题下面的“管理 #编号”，在里面更新掌握状态；保存后页面会<strong>立即刷新</strong>显示新状态。</p>
         <ul>
           <li><code>未掌握</code>：现在还不会，或者看讲解后仍不稳。</li>
           <li><code>复习中</code>：这次看懂了，但还需要再做类似题确认。</li>
           <li><code>已掌握</code>：能独立做对同类题，可以暂时退出待复习。</li>
         </ul>
+
+        <h3>编辑与删除</h3>
+        <div class="two">
+          <div class="card">
+            <b>编辑内容</b>
+            <span>在“管理”面板里可以直接改题目、学生答案、错因、正确答案、详细解析、年级、难度，保存即可。改过内容后旧的 AI 讲解会自动清空。</span>
+          </div>
+          <div class="card">
+            <b>删除错题</b>
+            <span>勾选“我确认删除这道错题”后才能点“删除”。删除会同时清掉这道题在相似题向量库里的记录，删了就不再出现在推荐里。</span>
+          </div>
+        </div>
 
         <div class="callout">
           <strong>建议用法</strong>
@@ -571,7 +622,7 @@ python -m streamlit run app.py</code></pre>
       </section>
 
       <section id="analysis">
-        <h2>8. “学情分析”怎么看</h2>
+        <h2>9. “学情分析”怎么看</h2>
         <p>这里不是给单题讲解，而是看一段时间的整体情况。</p>
 
         <table>
@@ -597,7 +648,7 @@ python -m streamlit run app.py</code></pre>
       </section>
 
       <section id="recommend">
-        <h2>9. “相似题推荐”怎么用</h2>
+        <h2>10. “相似题推荐”怎么用</h2>
         <p>这是这个项目比较特别的地方：它不只按知识点推荐，还会按解题思路推荐。</p>
 
         <div class="two">
@@ -626,7 +677,7 @@ python -m streamlit run app.py</code></pre>
       </section>
 
       <section id="real-data">
-        <h2>10. 一道真实错题应该怎么准备</h2>
+        <h2>11. 一道真实错题应该怎么准备</h2>
         <p>你可以按这个模板准备，填进网页里：</p>
         <pre><code>题目内容：
 学生错误答案：
@@ -656,7 +707,10 @@ python -m streamlit run app.py</code></pre>
       </section>
 
       <section id="faq">
-        <h2>11. 常见问题</h2>
+        <h2>12. 常见问题</h2>
+
+        <h3>录入时提示“这道题已存在”怎么办？</h3>
+        <p>说明同知识点下已经有一道题目和学生错答都相同的题，系统按查重规则拦下了。如果只是想改内容，去错题本里“编辑”那道题；如果确实是不同的题，检查一下题目或错答是不是填得完全一样。</p>
 
         <h3>为什么有很多模拟题？</h3>
         <p>那是为了测试相似题推荐是否能跑通。真实使用时，重点应该逐步录入孩子自己的错题。</p>

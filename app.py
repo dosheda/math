@@ -44,72 +44,123 @@ def configure_page() -> None:
         """
         <style>
         :root {
-            --ink: #17202a;
-            --muted: #667085;
-            --line: #d8dee8;
+            --bg: #f5f7fa;
             --panel: #ffffff;
-            --soft: #f3f7f8;
-            --teal: #0f766e;
-            --coral: #d65f4a;
-            --gold: #b7791f;
-            --blue: #2563eb;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --faint: #94a3b8;
+            --line: #e8ecf1;
+            --line-soft: #eef2f6;
+            --accent: #0f766e;
+            --accent-strong: #0b5f58;
+            --accent-soft: #ecfbf6;
+            --accent-line: #cdeee6;
+            --warn: #b45309;
+            --warn-soft: #fff7ed;
+            --warn-line: #fce4c8;
+            --danger: #be123c;
+            --danger-soft: #fff1f3;
+            --danger-line: #fbd0d9;
+            --radius: 16px;
+            --radius-sm: 12px;
         }
 
         .stApp {
-            background:
-                linear-gradient(180deg, #f7faf9 0%, #edf3f4 42%, #f8fafc 100%);
+            background: var(--bg);
             color: var(--ink);
         }
 
         .block-container {
-            max-width: 1280px;
-            padding-top: 1.35rem;
-            padding-bottom: 3rem;
+            max-width: 1180px;
+            padding-top: 1.6rem;
+            padding-bottom: 4rem;
         }
 
-        .hero {
-            border: 1px solid rgba(23, 32, 42, 0.10);
-            border-radius: 8px;
-            padding: 22px 24px;
-            background:
-                linear-gradient(135deg, rgba(15,118,110,0.96), rgba(23,32,42,0.94) 52%, rgba(183,121,31,0.88));
-            color: #ffffff;
-            box-shadow: 0 18px 45px rgba(20, 35, 45, 0.12);
+        /* 顶部标题条：干净、无重渐变 */
+        .app-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 20px 24px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            margin-bottom: 20px;
         }
 
-        .hero h1 {
-            font-size: 34px;
-            line-height: 1.18;
-            margin: 0 0 8px 0;
-            letter-spacing: 0;
+        .app-header .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
         }
 
-        .hero p {
+        .app-header .mark {
+            width: 46px;
+            height: 46px;
+            border-radius: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(150deg, var(--accent), var(--accent-strong));
+        }
+
+        .app-header h1 {
+            font-size: 22px;
+            font-weight: 800;
             margin: 0;
-            color: rgba(255,255,255,0.82);
-            font-size: 15px;
-            line-height: 1.7;
+            letter-spacing: -0.01em;
+            color: var(--ink);
         }
 
-        .status-pill {
+        .app-header .sub {
+            margin: 2px 0 0 0;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             border-radius: 999px;
-            padding: 5px 10px;
-            font-size: 12px;
-            font-weight: 700;
-            margin-right: 6px;
-            border: 1px solid rgba(255,255,255,0.28);
-            background: rgba(255,255,255,0.12);
-            color: #fff;
+            padding: 6px 12px;
+            font-size: 12.5px;
+            font-weight: 600;
+            background: var(--line-soft);
+            color: var(--muted);
+            border: 1px solid var(--line);
+        }
+
+        .chip.ok {
+            background: var(--accent-soft);
+            color: var(--accent);
+            border-color: var(--accent-line);
+        }
+
+        .chip.off {
+            background: var(--warn-soft);
+            color: var(--warn);
+            border-color: var(--warn-line);
         }
 
         .section-title {
-            margin: 18px 0 8px 0;
-            font-size: 18px;
+            margin: 20px 0 10px 0;
+            font-size: 17px;
             font-weight: 800;
             color: var(--ink);
+            letter-spacing: -0.01em;
         }
 
         .quiet {
@@ -119,175 +170,224 @@ def configure_page() -> None:
         }
 
         .mini-label {
-            color: var(--muted);
-            font-size: 12px;
+            color: var(--faint);
+            font-size: 11.5px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
         }
 
+        /* 指标卡：大数字 + 大留白 */
         .metric-card {
             background: var(--panel);
             border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 14px 16px;
-            min-height: 98px;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            min-height: 104px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: box-shadow .15s ease, transform .15s ease;
+        }
+
+        .metric-card:hover {
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07);
+            transform: translateY(-1px);
         }
 
         .metric-card .value {
-            font-size: 28px;
-            font-weight: 850;
+            font-size: 32px;
+            font-weight: 800;
             color: var(--ink);
-            margin-top: 6px;
+            margin-top: 10px;
+            line-height: 1;
+            letter-spacing: -0.02em;
         }
+
+        .metric-card .value.accent { color: var(--accent); }
 
         .metric-card .caption {
             color: var(--muted);
-            font-size: 12px;
-            margin-top: 2px;
+            font-size: 12.5px;
+            margin-top: 8px;
         }
 
+        /* 通用面板 */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            margin-bottom: 14px;
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--ink);
+            margin: 0 0 12px 0;
+        }
+
+        /* 薄弱知识点条目 */
+        .weak-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid var(--line-soft);
+        }
+
+        .weak-row:first-of-type { border-top: none; }
+
+        .weak-row .name { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+        .weak-row .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        .bar {
+            width: 96px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--line);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .bar > span {
+            display: block;
+            height: 100%;
+            border-radius: 999px;
+            background: var(--accent);
+        }
+
+        /* 错题卡片：柔和阴影、大圆角、细左边条 */
         .mistake-card {
             background: var(--panel);
             border: 1px solid var(--line);
-            border-left: 5px solid var(--teal);
-            border-radius: 8px;
-            padding: 14px 16px;
-            margin: 10px 0;
-            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 16px 18px;
+            margin: 12px 0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            transition: box-shadow .15s ease;
         }
 
-        .mistake-card.same {
-            border-left-color: var(--teal);
-        }
+        .mistake-card:hover { box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06); }
 
-        .mistake-card.cross {
-            border-left-color: var(--coral);
-        }
-
-        .mistake-card.target {
-            border-left-color: var(--blue);
-        }
+        .mistake-card.same { border-left-color: var(--accent); }
+        .mistake-card.cross { border-left-color: #c2703d; }
+        .mistake-card.target { border-left-color: #2563eb; }
 
         .mistake-head {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             gap: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .badge {
             display: inline-flex;
             align-items: center;
             border-radius: 999px;
-            padding: 3px 9px;
+            padding: 3px 10px;
             font-size: 12px;
-            font-weight: 750;
-            background: #eef7f5;
-            color: #0f766e;
-            border: 1px solid #cfe6e2;
+            font-weight: 650;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border: 1px solid var(--accent-line);
         }
 
-        .badge.warn {
-            background: #fff5ed;
-            color: #b45309;
-            border-color: #fed7aa;
-        }
-
-        .badge.danger {
-            background: #fff1f0;
-            color: #be3a2f;
-            border-color: #fecaca;
-        }
-
-        .badge.neutral {
-            background: #eef2f7;
-            color: #475467;
-            border-color: #d8dee8;
-        }
+        .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn-line); }
+        .badge.danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
+        .badge.neutral { background: var(--line-soft); color: var(--muted); border-color: var(--line); }
 
         .question {
-            font-weight: 760;
+            font-weight: 650;
             color: var(--ink);
             line-height: 1.7;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            font-size: 15px;
         }
 
         .detail-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
-            margin-top: 10px;
+            margin-top: 12px;
         }
 
         .detail-box {
-            background: #f8fafb;
-            border: 1px solid #e5ebf0;
-            border-radius: 8px;
-            padding: 10px 12px;
-            min-height: 74px;
+            background: var(--bg);
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-sm);
+            padding: 11px 13px;
+            min-height: 70px;
         }
 
         .detail-box b {
             display: block;
-            color: #344054;
-            font-size: 12px;
-            margin-bottom: 4px;
+            color: var(--faint);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 5px;
         }
 
         .detail-box span {
-            color: #1f2937;
+            color: var(--ink);
             font-size: 13px;
-            line-height: 1.65;
+            line-height: 1.6;
         }
 
         div[data-testid="stMetric"] {
-            background: #ffffff;
+            background: var(--panel);
             border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 12px 14px;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
 
-        div[data-testid="stTabs"] [data-baseweb="tab-list"] {
-            gap: 8px;
+        /* 侧栏导航 */
+        section[data-testid="stSidebar"] {
+            background: var(--panel);
+            border-right: 1px solid var(--line);
         }
 
-        div[data-testid="stTabs"] button[role="tab"] {
-            border: 1px solid #d8dee8;
-            border-radius: 8px;
-            background: #ffffff;
-            padding: 8px 12px;
+        section[data-testid="stSidebar"] div[role="radiogroup"] label {
+            border-radius: 10px;
+            padding: 3px 8px;
+            transition: background .12s ease;
         }
 
-        div[data-testid="stTabs"] button[aria-selected="true"] {
-            border-color: #0f766e;
-            background: #eef7f5;
+        section[data-testid="stSidebar"] div[role="radiogroup"] label:hover {
+            background: var(--accent-soft);
         }
 
+        /* 主按钮 */
         .stButton > button {
-            border-radius: 8px;
-            border: 1px solid #0f766e;
-            background: #0f766e;
+            border-radius: 10px;
+            border: 1px solid var(--accent);
+            background: var(--accent);
             color: white;
-            font-weight: 760;
+            font-weight: 650;
+            transition: background .12s ease, border-color .12s ease;
         }
 
         .stButton > button:hover {
-            border-color: #115e59;
-            background: #115e59;
+            border-color: var(--accent-strong);
+            background: var(--accent-strong);
             color: white;
         }
 
+        .stButton > button:disabled {
+            border-color: var(--line);
+            background: var(--line-soft);
+            color: var(--faint);
+        }
+
         @media (max-width: 760px) {
-            .hero h1 {
-                font-size: 26px;
-            }
-            .detail-grid {
-                grid-template-columns: 1fr;
-            }
+            .app-header { flex-direction: column; align-items: flex-start; }
+            .detail-grid { grid-template-columns: 1fr; }
         }
         </style>
         """,
@@ -362,13 +462,14 @@ def mistake_label(item: dict[str, Any]) -> str:
     )
 
 
-def metric_card(label: str, value: Any, caption: str = "") -> None:
-    """自定义指标卡，让概览区更稳、更清楚。"""
+def metric_card(label: str, value: Any, caption: str = "", accent: bool = False) -> None:
+    """自定义指标卡：小标签 + 大数字 + 说明。accent=True 时数字用强调色。"""
+    value_class = "value accent" if accent else "value"
     st.markdown(
         f"""
         <div class="metric-card">
             <div class="mini-label">{escape(str(label))}</div>
-            <div class="value">{escape(str(value))}</div>
+            <div class="{value_class}">{escape(str(value))}</div>
             <div class="caption">{escape(str(caption))}</div>
         </div>
         """,
@@ -377,42 +478,75 @@ def metric_card(label: str, value: Any, caption: str = "") -> None:
 
 
 def render_header(api_ready: bool, total_mistakes: int) -> None:
-    """页面顶部工作台标题。"""
+    """页面顶部干净标题条：品牌 + 状态 chips。"""
+    api_class = "chip ok" if api_ready else "chip off"
     api_text = "DeepSeek 已连接" if api_ready else "DeepSeek 未配置"
     st.markdown(
         f"""
-        <div class="hero">
-            <div style="margin-bottom: 12px;">
-                <span class="status-pill">{escape(api_text)}</span>
-                <span class="status-pill">本地错题 {total_mistakes} 道</span>
-                <span class="status-pill">SQLite + Chroma 本地运行</span>
+        <div class="app-header">
+            <div class="brand">
+                <div class="mark">∑</div>
+                <div>
+                    <h1>K12 数学错题助手</h1>
+                    <p class="sub">把真实错题沉淀成可复习、可讲解、可分析、可推荐的学习资产</p>
+                </div>
             </div>
-            <h1>K12 数学错题讲解助手</h1>
-            <p>把真实错题沉淀成可复习、可讲解、可分析、可推荐的学习资产。</p>
+            <div class="chips">
+                <span class="{api_class}">{escape(api_text)}</span>
+                <span class="chip">本地错题 {int(total_mistakes)} 道</span>
+                <span class="chip">SQLite · Chroma 本地</span>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_sidebar(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
-    """左侧状态栏和轻量工具。"""
+NAV_PAGES = ["概览", "录入错题", "错题讲解", "错题本", "学情分析", "相似题推荐"]
+NAV_ICONS = {
+    "概览": "◈",
+    "录入错题": "＋",
+    "错题讲解": "✎",
+    "错题本": "▤",
+    "学情分析": "◲",
+    "相似题推荐": "⇄",
+}
+
+
+def goto(page: str) -> None:
+    """程序化跳转到某个页面：设置当前页并重跑。"""
+    st.session_state["page"] = page
+    st.rerun()
+
+
+def render_sidebar(api_ready: bool, mistakes: list[dict[str, Any]]) -> str:
+    """左侧导航 + 状态 + 工具。返回用户选中的页面。"""
     with st.sidebar:
-        st.markdown("### 工作台")
-        st.caption("本地数据不会自动上传。")
+        st.markdown(
+            '<div style="font-size:18px;font-weight:800;margin:2px 0 10px 2px;">'
+            '∑&nbsp; 错题助手</div>',
+            unsafe_allow_html=True,
+        )
 
-        st.markdown("#### 环境")
-        st.write("DeepSeek API：", "已配置" if api_ready else "未配置")
-        st.write("SQLite：", str(mistake_db.DB_PATH.name))
-        st.write("Chroma：", str(mistake_recommender.CHROMA_DB_PATH.name))
+        current = st.session_state.get("page", "概览")
+        default_index = NAV_PAGES.index(current) if current in NAV_PAGES else 0
+        page = st.radio(
+            "导航",
+            NAV_PAGES,
+            index=default_index,
+            label_visibility="collapsed",
+            format_func=lambda p: f"{NAV_ICONS.get(p, '')}  {p}",
+        )
+        st.session_state["page"] = page
 
-        st.markdown("#### 数据")
+        st.markdown("---")
+
         overview = learning_overview()
-        st.metric("原始记录", overview.get("total_records", 0))
-        st.metric("有效错题", overview.get("total_mistakes", 0))
-        st.metric("待复习", overview.get("pending_review_count", 0))
+        col_a, col_b = st.columns(2)
+        col_a.metric("有效错题", overview.get("total_mistakes", 0))
+        col_b.metric("待复习", overview.get("pending_review_count", 0))
 
-        st.markdown("#### 向量库")
+        st.markdown("#### 工具")
         if st.button("同步错题向量", width="stretch"):
             with st.spinner("正在同步到本地 Chroma..."):
                 result = mistake_recommender.sync_mistakes_to_vector_store()
@@ -420,7 +554,7 @@ def render_sidebar(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
             st.caption(f"同步：{result.get('synced_count', 0)} 条")
 
         with st.expander("演示数据"):
-            st.caption("当前已有批量样例时会自动跳过，不会重复录入。首次运行会调用 DeepSeek。")
+            st.caption("已有样例会自动跳过，不重复录入。首次运行会调用 DeepSeek。")
             if st.button("检查 48 道演示题", width="stretch", disabled=not api_ready):
                 import seed_similar_mistake_samples
 
@@ -429,8 +563,13 @@ def render_sidebar(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
                 refresh_data_cache()
                 st.json(stats)
 
-        st.markdown("---")
-        st.caption(f"当前列表：{len(mistakes)} 道错题")
+        with st.expander("环境信息"):
+            st.write("DeepSeek API：", "已配置" if api_ready else "未配置")
+            st.write("SQLite：", str(mistake_db.DB_PATH.name))
+            st.write("Chroma：", str(mistake_recommender.CHROMA_DB_PATH.name))
+            st.caption("本地数据不会自动上传。")
+
+    return page
 
 
 def render_mistake_card(
@@ -871,7 +1010,7 @@ def render_learning_tab(api_ready: bool) -> None:
     with col1:
         metric_card("有效错题", overview.get("total_mistakes", 0), "去重后")
     with col2:
-        metric_card("掌握率", f"{overview.get('overall_mastery_rate', 0)}%", "已掌握占比")
+        metric_card("掌握率", f"{overview.get('overall_mastery_rate', 0)}%", "已掌握占比", accent=True)
     with col3:
         metric_card("待复习", overview.get("pending_review_count", 0), "未掌握 + 复习中")
     with col4:
@@ -990,27 +1129,140 @@ def render_recommendation_tab(mistakes: list[dict[str, Any]]) -> None:
             render_mistake_card(item, card_type="cross")
 
 
+def _weak_row_html(item: dict[str, Any]) -> str:
+    """仪表盘薄弱知识点单行 HTML。进度条宽度用掌握率。"""
+    rate = float(item.get("mastery_rate", 0) or 0)
+    name = escape(str(item.get("knowledge_point_name") or "未命名"))
+    parent = escape(str(item.get("parent_name") or "无"))
+    count = int(item.get("mistake_count", 0) or 0)
+    unmastered = int(item.get("unmastered_count", 0) or 0)
+    return (
+        '<div class="weak-row">'
+        f'<div><div class="name">{name}</div>'
+        f'<div class="meta">{parent} · 错题 {count} · 待复习 {unmastered}</div></div>'
+        '<div style="display:flex;align-items:center;gap:10px;">'
+        f'<div class="bar"><span style="width:{rate:.0f}%"></span></div>'
+        f'<span class="quiet" style="width:36px;text-align:right;">{rate:.0f}%</span>'
+        '</div></div>'
+    )
+
+
+def render_dashboard(api_ready: bool, mistakes: list[dict[str, Any]]) -> None:
+    """概览首页：关键指标 + 快捷操作 + 薄弱点 + 大方向 + 最近错题。"""
+    overview = learning_overview()
+    total = overview.get("total_mistakes", 0)
+
+    # 空状态：引导录入第一道题
+    if total == 0:
+        st.markdown(
+            '<div class="panel"><div class="panel-title">欢迎使用 👋</div>'
+            '<div class="quiet">还没有错题。录入第一道错题后，这里会显示掌握率、'
+            '薄弱知识点和待复习清单。</div></div>',
+            unsafe_allow_html=True,
+        )
+        if st.button("＋ 录入第一道错题", width="stretch"):
+            goto("录入错题")
+        return
+
+    status_counts = overview.get("status_counts", {})
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        metric_card("有效错题", total, "去重后")
+    with c2:
+        metric_card("掌握率", f"{overview.get('overall_mastery_rate', 0)}%", "已掌握占比", accent=True)
+    with c3:
+        metric_card("待复习", overview.get("pending_review_count", 0), "未掌握 + 复习中")
+    with c4:
+        metric_card("已掌握", status_counts.get("已掌握", 0), "已攻克")
+
+    st.markdown('<div class="section-title">快捷操作</div>', unsafe_allow_html=True)
+    q1, q2, q3 = st.columns(3)
+    with q1:
+        if st.button("＋  录入新错题", width="stretch"):
+            goto("录入错题")
+    with q2:
+        if st.button("▤  去复习待复习题", width="stretch"):
+            goto("错题本")
+    with q3:
+        if st.button("◲  查看学情分析", width="stretch"):
+            goto("学情分析")
+
+    left, right = st.columns([1.1, 1])
+    with left:
+        weak = overview.get("weakest_points", [])[:5]
+        rows = "".join(_weak_row_html(item) for item in weak)
+        if not rows:
+            rows = '<div class="quiet">还没有足够错题来分析薄弱点。</div>'
+        st.markdown(
+            f'<div class="panel"><div class="panel-title">薄弱知识点 Top 5</div>{rows}</div>',
+            unsafe_allow_html=True,
+        )
+
+    with right:
+        pending = status_counts.get("未掌握", 0)
+        reviewing = status_counts.get("复习中", 0)
+        mastered = status_counts.get("已掌握", 0)
+        st.markdown(
+            '<div class="panel"><div class="panel-title">掌握状态分布</div>'
+            f'<div class="weak-row"><span class="badge danger">未掌握</span>'
+            f'<span class="name">{pending}</span></div>'
+            f'<div class="weak-row"><span class="badge warn">复习中</span>'
+            f'<span class="name">{reviewing}</span></div>'
+            f'<div class="weak-row"><span class="badge">已掌握</span>'
+            f'<span class="name">{mastered}</span></div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        areas = overview.get("by_parent_area", [])[:5]
+        area_rows = ""
+        for item in areas:
+            name = escape(str(item.get("area_name") or "-"))
+            cnt = int(item.get("mistake_count", 0) or 0)
+            un = int(item.get("unmastered_count", 0) or 0)
+            area_rows += (
+                '<div class="weak-row">'
+                f'<div class="name">{name}</div>'
+                f'<div class="meta">错题 {cnt} · 待复习 {un}</div></div>'
+            )
+        if not area_rows:
+            area_rows = '<div class="quiet">暂无方向数据。</div>'
+        st.markdown(
+            f'<div class="panel"><div class="panel-title">薄弱大方向</div>{area_rows}</div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<div class="section-title">最近录入</div>', unsafe_allow_html=True)
+    for item in mistakes[:4]:
+        render_mistake_card(item, card_type="target", show_details=False)
+    if len(mistakes) > 4 and st.button("查看全部错题 →", width="stretch"):
+        goto("错题本")
+
+
 def render_app() -> None:
-    """页面主入口。"""
+    """页面主入口：侧栏导航决定当前页面。"""
     configure_page()
     bootstrap_data()
+    if "page" not in st.session_state:
+        st.session_state["page"] = "概览"
 
     api_ready = has_deepseek_key()
     mistakes = all_mistakes()
 
+    page = render_sidebar(api_ready, mistakes)
     render_header(api_ready, len(mistakes))
-    render_sidebar(api_ready, mistakes)
 
-    tabs = st.tabs(["录入错题", "错题讲解", "错题本", "学情分析", "相似题推荐"])
-    with tabs[0]:
+    if page == "概览":
+        render_dashboard(api_ready, mistakes)
+    elif page == "录入错题":
         render_entry_tab(api_ready)
-    with tabs[1]:
+    elif page == "错题讲解":
         render_explanation_tab(api_ready, mistakes)
-    with tabs[2]:
+    elif page == "错题本":
         render_mistake_book_tab(mistakes)
-    with tabs[3]:
+    elif page == "学情分析":
         render_learning_tab(api_ready)
-    with tabs[4]:
+    elif page == "相似题推荐":
         render_recommendation_tab(mistakes)
 
 
