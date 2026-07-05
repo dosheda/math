@@ -18,6 +18,7 @@ import os
 from html import escape
 from typing import Any
 
+import pandas as pd
 import streamlit as st
 
 import mistake_ai
@@ -1035,9 +1036,11 @@ def render_mistake_book_tab(mistakes: list[dict[str, Any]]) -> None:
 
 
 def render_learning_tab(api_ready: bool) -> None:
-    """统计概览和 AI 学情报告。"""
+    """统计概览、趋势和 AI 学情报告。"""
     st.markdown('<div class="section-title">学情分析</div>', unsafe_allow_html=True)
     overview = learning_overview()
+    # 打开学情页时记录今天的快照，掌握率趋势就是这些快照连成的曲线。
+    mistake_db.record_learning_snapshot(overview)
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1085,6 +1088,27 @@ def render_learning_tab(api_ready: bool) -> None:
                 }
             )
         st.dataframe(parent_rows, hide_index=True, width="stretch")
+
+    st.markdown("#### 趋势")
+    trend_left, trend_right = st.columns(2)
+    with trend_left:
+        st.caption("掌握率趋势")
+        snapshots = mistake_db.get_learning_snapshots(limit=90)
+        if len(snapshots) >= 2:
+            df = pd.DataFrame(snapshots)[["snapshot_date", "mastery_rate"]]
+            df = df.rename(columns={"snapshot_date": "日期", "mastery_rate": "掌握率"})
+            st.line_chart(df, x="日期", y="掌握率", height=220)
+        else:
+            st.info("掌握率趋势会随每天使用逐步积累，目前快照还不足 2 天。")
+    with trend_right:
+        st.caption("错题累积")
+        trend = mistake_db.get_mistake_creation_trend()
+        if trend:
+            tdf = pd.DataFrame(trend)[["date", "cumulative"]]
+            tdf = tdf.rename(columns={"date": "日期", "cumulative": "累计错题"})
+            st.area_chart(tdf, x="日期", y="累计错题", height=220)
+        else:
+            st.info("还没有错题，录入后这里会显示累积曲线。")
 
     generate_report = st.button(
         "生成 AI 学情报告",

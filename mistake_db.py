@@ -137,6 +137,22 @@ def create_tables() -> bool:
                 """
             )
 
+            # 表三：学情快照 learning_snapshots
+            # 掌握率这类“随时间变化”的指标无法从当前状态反推历史，
+            # 所以按天存一份快照，趋势就是这些快照连成的曲线。
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS learning_snapshots (
+                    snapshot_date TEXT PRIMARY KEY,            -- 快照日期 YYYY-MM-DD，一天一条
+                    total_mistakes INTEGER NOT NULL,          -- 去重后错题数
+                    mastered_count INTEGER NOT NULL,          -- 已掌握数
+                    mastery_rate REAL NOT NULL,               -- 掌握率(%)
+                    pending_review_count INTEGER NOT NULL,    -- 待复习数
+                    created_at TEXT NOT NULL                  -- 记录时间
+                )
+                """
+            )
+
             # 轻量迁移：老库（已存在的 mistakes 表）补齐后加的列。
             existing_columns = {
                 row["name"] for row in conn.execute("PRAGMA table_info(mistakes)").fetchall()
@@ -1266,3 +1282,90 @@ def get_due_reviews(
         )
     )
     return due
+
+
+# ------------------------------------------------------------------
+# 学情趋势（掌握率随时间变化 + 错题累积）
+# ------------------------------------------------------------------
+def record_learning_snapshot(
+    overview: dict[str, Any] | None = None,
+    snapshot_date: str | None = None,
+) -> bool:
+    """
+    记录今天的学情快照（同一天多次调用会覆盖，upsert）。
+
+    掌握率这种指标只能“从今往后”一天天攒出趋势，所以每次打开学情页时存一份。
+    """
+    if overview is None:
+        overview = build_learning_overview(deduplicate=True)
+
+    date_str = snapshot_date or datetime.now().date().isoformat()
+    total = int(overview.get("total_mistakes", 0) or 0)
+    mastered = int(overview.get("status_counts", {}).get("已掌握", 0) or 0)
+    rate = float(overview.get("overall_mastery_rate", 0.0) or 0.0)
+    pending = int(overview.get("pending_review_count", 0) or 0)
+
+    try:
+        with get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO learning_snapshots (
+                    snapshot_date, total_mistakes, mastered_count,
+                    mastery_rate, pending_review_count, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(snapshot_date) DO UPDATE SET
+                    total_mistakes = excluded.total_mistakes,
+                    mastered_count = excluded.mastered_count,
+                    mastery_rate = excluded.mastery_rate,
+                    pending_review_count = excluded.pending_review_count,
+                    created_at = excluded.created_at
+                """,
+                (date_str, total, mastered, rate, pending, now_text()),
+            )
+        return True
+    except sqlite3.Error as exc:
+        print(f"[数据库错误] 记录学情快照失败：{exc}")
+        return False
+
+
+def get_learning_snapshots(limit: int = 90) -> list[dict[str, Any]]:
+    """取最近的学情快照，按日期升序返回，用于画掌握率趋势。"""
+    try:
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM learning_snapshots
+                ORDER BY snapshot_date DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            return [row_to_dict(row) for row in reversed(rows)]
+    except sqlite3.Error as exc:
+        print(f"[数据库错误] 查询学情快照失败：{exc}")
+        return []
+
+
+def get_mistake_creation_trend(deduplicate: bool = True) -> list[dict[str, Any]]:
+    """
+    按录入日期统计错题：每天新增多少、累计多少。
+
+    和掌握率不同，这个趋势可以从 created_at 精确重建，装了应用当天就能看。
+    """
+    mistakes = get_all_mistakes_with_knowledge()
+    if deduplicate:
+        mistakes, _ = deduplicate_mistakes(mistakes)
+
+    daily: dict[str, int] = {}
+    for mistake in mistakes:
+        created = str(mistake.get("created_at") or "")
+        date = created[:10]
+        if date:
+            daily[date] = daily.get(date, 0) + 1
+
+    result: list[dict[str, Any]] = []
+    cumulative = 0
+    for date in sorted(daily):
+        cumulative += daily[date]
+        result.append({"date": date, "new_count": daily[date], "cumulative": cumulative})
+    return result

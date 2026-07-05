@@ -25,7 +25,7 @@
 - API key：只允许从系统环境变量 `DEEPSEEK_API_KEY` 读取。
 - 向量库：ChromaDB 本地 `PersistentClient`，默认路径 `mistake_chroma_db/`。
 - Embedding：`BAAI/bge-small-zh-v1.5`，通过 Chroma 内置 `SentenceTransformerEmbeddingFunction` 加载。
-- 依赖版本：`openai==2.41.0`、`chromadb==1.5.9`、`sentence-transformers==2.7.0`、`streamlit==1.58.0`。
+- 依赖版本：`openai==2.41.0`、`chromadb==1.5.9`、`sentence-transformers==2.7.0`、`streamlit==1.58.0`、`pandas==3.0.3`。
 
 ## 重要约定
 - 不要把这个项目和古诗词 RAG 项目混在一起；当前项目目录是 `D:\k12_math_mistake_helper`。

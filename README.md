@@ -4,7 +4,7 @@
 
 **把一个孩子的错题，沉淀成 · 可追踪 · 可统计 · 可检索 · 的纵向学习资产**
 
-![version](https://img.shields.io/badge/version-v0.6.0-0f766e?style=flat-square)
+![version](https://img.shields.io/badge/version-v0.7.0-0f766e?style=flat-square)
 ![python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
 ![streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
 ![storage](https://img.shields.io/badge/SQLite%20·%20Chroma-local--first-64748b?style=flat-square)
@@ -76,6 +76,7 @@ flowchart LR
 | 💡 **对症讲解** | 围绕学生**具体错答和错因**生成四段式讲解（你错在哪里 / 一起想一想 / 正确解法 / 举一反三），结果缓存 |
 | 📚 **错题本** | **今日复习**（遗忘曲线）/ 待复习 / 全部 / 按知识点·状态·年级；**搜索 + 分页**；状态更新、**编辑、删除** |
 | ⏳ **间隔复习** | 按复习次数 + 掌握状态排「今日到期」清单（1→3→7→15→30 天），复习后自动进入下一间隔，纯本地不烧 API |
+| 📈 **趋势** | 掌握率趋势（每天存快照逐步积累）+ 错题累积曲线（从录入日期精确重建，当天可见） |
 | 📊 **学情分析** | 本地统计薄弱点、掌握率、方向聚合；DeepSeek 生成家长/老师可读报告（只发聚合摘要，不发原题） |
 | 🔁 **相似题推荐** | ① 同知识点直接巩固；② 跨知识点「思路相近」——用 **AI 提取的解题思路标签**做向量检索 |
 
@@ -161,7 +162,7 @@ python -m streamlit run app.py
 | :-- | :--: | :--: | :-- |
 | **AI 解题思路标签** 替代硬编码关键词 | 中高 | 低 | ✅ 已完成 |
 | **遗忘曲线 / 间隔复习**（今日到期清单，纯本地不烧 API） | 高 | 低-中 | ✅ 已完成 |
-| **掌握率趋势**（按时间留快照，看变化而非当前快照） | 中 | 中 | 🔜 计划中 |
+| **掌握率趋势**（按天存快照 + 错题累积曲线） | 中 | 中 | ✅ 已完成 |
 | **多学生 / 班级维度**（从「一个孩子」到「一个老师带一批」） | 高 | 高 | 🔜 计划中 |
 | **私有知识库导入**（教材版本 / 方法边界 / 私有题库 / 考纲） | 护城河 | 高 | 🌱 愿景 |
 
